@@ -1,15 +1,11 @@
-// main_screen.dart (oder root_screen.dart)
-
 import 'package:eat_beat_repeat/frontend/pages/home/home_page.dart';
 import 'package:eat_beat_repeat/frontend/pages/meal_plans/meal_plans_page.dart';
 import 'package:eat_beat_repeat/frontend/pages/foods_and_recipes/foods_and_recipes_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-// --- Importiere alle 5 Seiten-Widgets ---
-// Annahme: Du hast diese Widgets bereits als separate Dateien erstellt.
-import 'package:eat_beat_repeat/frontend/pages/workouts/workouts_page.dart'; // Beispiel
-import 'package:eat_beat_repeat/frontend/pages/profile/profile_page.dart'; // Beispiel
+import 'package:eat_beat_repeat/frontend/pages/workouts/workouts_page.dart';
+import 'package:eat_beat_repeat/frontend/pages/profile/profile_page.dart';
 
 class MainPage extends ConsumerStatefulWidget {
   const MainPage({super.key});
@@ -22,8 +18,6 @@ class _MainPageState extends ConsumerState<MainPage> {
   // Index 2 ist die Mitte: Home
   int _selectedIndex = 2;
 
-  // Die Liste der WURZEL-Widgets für JEDEN Tab
-  // Wichtig: Die Reihenfolge muss zur 'destinations'-Liste unten passen.
   late final List<Widget> _pages;
 
   @override
@@ -46,11 +40,9 @@ class _MainPageState extends ConsumerState<MainPage> {
       return;
     }
 
-    // Zustand aktualisieren, was IndexedStack dazu bringt, das neue Kind anzuzeigen.
     setState(() {
       _selectedIndex = index;
     });
-    // KEIN Navigator.push... Hier wird der Zoom vermieden!
   }
 
   @override
