@@ -13,6 +13,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   flutter_riverpod: ^3.0.3
   riverpod_annotation: ^3.0.3
+  path_provider: ^2.1.5
   uuid: ^4.4.0
 
 dev_dependencies:
