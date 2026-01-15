@@ -5,14 +5,17 @@ import 'package:eat_beat_repeat/logic/models/food_data.dart';
 import 'package:eat_beat_repeat/logic/provider/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class FoodDataList extends ConsumerWidget {
   const FoodDataList({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final foodDataMap = ref.watch(foodDataProvider);
-    final foodDataList = foodDataMap.values.toList();
+    final activeFoodDataList = ref
+        .watch(activeFoodDataProvider)
+        .values
+        .toList();
 
     return Column(
       children: [
@@ -24,7 +27,8 @@ class FoodDataList extends ConsumerWidget {
             label: const Text('Neues FoodData anlegen'),
             style: ElevatedButton.styleFrom(
               minimumSize: const Size(double.infinity, 50),
-              backgroundColor: Colors.indigo,
+              // color like wheat color
+              backgroundColor: Colors.teal,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -33,17 +37,18 @@ class FoodDataList extends ConsumerWidget {
           ),
         ),
         Expanded(
-          child: foodDataList.isEmpty
+          child: activeFoodDataList.isEmpty
               ? const Center(child: Text('Keine Lebensmitteldaten vorhanden.'))
               : ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  itemCount: foodDataList.length,
+                  itemCount: activeFoodDataList.length,
                   itemBuilder: (context, index) {
-                    final foodData = foodDataList[index];
+                    final foodData = activeFoodDataList[index];
                     return CustomCard(
                       key: ValueKey(foodData.id),
-                      avatarColor: Colors.indigo.shade100,
-                      avatarIcon: Icons.list_alt,
+                      avatarColor: Colors.teal.shade100,
+                      avatarIcon: LucideIcons.notebookText,
+                      avatarIconColor: Colors.teal,
                       title: RichText(
                         text: TextSpan(
                           style: const TextStyle(
@@ -73,7 +78,11 @@ class FoodDataList extends ConsumerWidget {
                           Text('Nährwerte pro 100${foodData.defaultUnit}:'),
 
                           Text(
-                            '${foodData.macrosPer100unit.calories.toStringAsFixed(0)} Cal | ${foodData.macrosPer100unit.protein.toStringAsFixed(1)}${foodData.defaultUnit} Protein | ${foodData.macrosPer100unit.carbs.toStringAsFixed(1)}${foodData.defaultUnit} Carbs | ${foodData.macrosPer100unit.fat.toStringAsFixed(1)}${foodData.defaultUnit} Fat',
+                            '${foodData.macrosPer100unit.calories.toStringAsFixed(0)} Cal | ${foodData.macrosPer100unit.protein.toStringAsFixed(1)}g P | ${foodData.macrosPer100unit.carbs.toStringAsFixed(1)}g C | ${foodData.macrosPer100unit.fat.toStringAsFixed(1)}g F',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.black54,
+                            ),
                           ),
                         ],
                       ),
@@ -85,7 +94,9 @@ class FoodDataList extends ConsumerWidget {
                         );
                       },
                       onDiscarding: () {
-                        ref.read(foodDataProvider.notifier).remove(foodData.id);
+                        ref
+                            .read(foodDataMapProvider.notifier)
+                            .moveToTrash(foodData.id);
                       },
                     );
                   },

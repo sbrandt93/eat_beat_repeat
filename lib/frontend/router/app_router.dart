@@ -4,6 +4,7 @@ import 'package:eat_beat_repeat/frontend/pages/meal_plans/meal_plans_page.dart';
 import 'package:eat_beat_repeat/frontend/pages/profile/profile_page.dart';
 import 'package:eat_beat_repeat/frontend/pages/foods_and_recipes/foods_and_recipes_page.dart';
 import 'package:eat_beat_repeat/frontend/pages/main_page.dart';
+import 'package:eat_beat_repeat/frontend/pages/profile/trash_page.dart';
 import 'package:eat_beat_repeat/frontend/pages/workouts/workouts_page.dart';
 import 'package:flutter/material.dart';
 
@@ -15,6 +16,7 @@ enum Routes {
   home,
   workouts,
   profile,
+  trash,
 }
 
 class AppRouter {
@@ -35,6 +37,8 @@ class AppRouter {
         return createNoTransitionRoute(const WorkoutsPage());
       case 'profile':
         return createNoTransitionRoute(const ProfilePage());
+      case 'trash':
+        return createNoTransitionRoute(const TrashPage());
       default:
         return MaterialPageRoute(builder: (_) => const HomePage());
     }

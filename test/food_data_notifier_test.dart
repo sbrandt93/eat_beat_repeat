@@ -81,8 +81,8 @@ void main() {
         defaultUnit: 'grams',
       );
 
-      // FIXME: ACT - Führe die Methode aus
-      notifier.add(foodData);
+      // ACT - Führe die Methode aus
+      notifier.upsert(foodData);
 
       // HINWEIS: Man kann den Zustand auch direkt lesen:
       final stateMap = container.read(foodDataNotifierProvider);
@@ -110,7 +110,7 @@ void main() {
       );
 
       // VORBEREITUNG: Füge das Element hinzu
-      notifier.add(initialFoodData);
+      notifier.upsert(initialFoodData);
       expect(
         container
             .read(foodDataNotifierProvider)
@@ -118,8 +118,8 @@ void main() {
         isTrue,
       );
 
-      // FIXME: ACT - Element entfernen
-      notifier.remove(initialFoodData.id);
+      // ACT - Element entfernen
+      notifier.hardDelete(initialFoodData.id);
 
       final stateMap = container.read(foodDataNotifierProvider);
 

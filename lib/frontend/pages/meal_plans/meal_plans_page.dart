@@ -4,9 +4,9 @@
 // else show list of meal plans as carts with info like date, meals, calories, etc. and on tap navigate to detailed meal plan page
 
 import 'package:eat_beat_repeat/frontend/router/app_router.dart';
-import 'package:eat_beat_repeat/logic/helpers.dart';
-import 'package:eat_beat_repeat/logic/models/meal_plan.dart';
 import 'package:eat_beat_repeat/logic/provider/providers.dart';
+import 'package:eat_beat_repeat/logic/utils/helpers.dart';
+import 'package:eat_beat_repeat/logic/models/meal_plan.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -24,7 +24,7 @@ class MealPlansPage extends ConsumerWidget {
       builder: (BuildContext dialogContext) {
         return _NewPlanInputDialog(
           titleController: titleController,
-          selectedDate: selectedDate,
+          initialDate: selectedDate,
         );
       },
     );
@@ -41,15 +41,27 @@ class MealPlansPage extends ConsumerWidget {
     final mealPlansMap = ref.watch(mealPlanProvider);
     final mealPlans = mealPlansMap.values.toList();
     return Scaffold(
+      backgroundColor: Colors.teal.shade50,
       appBar: AppBar(
-        title: const Text('Meal Plans', style: TextStyle(color: Colors.white)),
-        backgroundColor: Theme.of(context).colorScheme.primary,
+        title: Row(
+          children: [
+            Image.asset(
+              'assets/vion/vion_basic.png',
+              height: 50,
+            ),
+            const SizedBox(width: 10),
+            const Text(
+              'Ernährungspläne',
+              style: TextStyle(color: Colors.teal, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
       ),
       body: Column(
         children: [
           const SizedBox(height: 20),
           const Text(
-            'Your Meal Plans',
+            'Deine Pläne',
             style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 10),
@@ -57,7 +69,7 @@ class MealPlansPage extends ConsumerWidget {
             child: mealPlans.isEmpty
                 ? const Center(
                     child: Text(
-                      'No meal plans available. Please create a new meal plan.',
+                      'Keine Ernährungspläne vorhanden.\nErstelle einen neuen Plan!',
                     ),
                   )
                 : ListView.builder(
@@ -144,11 +156,11 @@ class MealPlanCard extends ConsumerWidget {
 
 class _NewPlanInputDialog extends ConsumerStatefulWidget {
   final TextEditingController titleController;
-  DateTime? selectedDate;
+  final DateTime? initialDate;
 
-  _NewPlanInputDialog({
+  const _NewPlanInputDialog({
     required this.titleController,
-    required this.selectedDate,
+    required this.initialDate,
   });
 
   @override
@@ -157,17 +169,25 @@ class _NewPlanInputDialog extends ConsumerStatefulWidget {
 }
 
 class _NewPlanInputDialogState extends ConsumerState<_NewPlanInputDialog> {
+  late DateTime? selectedDate;
+
+  @override
+  void initState() {
+    super.initState();
+    selectedDate = widget.initialDate;
+  }
+
   // Widget zum Auswählen des Datums
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: widget.selectedDate!,
+      initialDate: selectedDate!,
       firstDate: DateTime.now().subtract(const Duration(days: 365)),
       lastDate: DateTime.now().add(const Duration(days: 365)),
     );
-    if (picked != null && picked != widget.selectedDate) {
+    if (picked != null && picked != selectedDate) {
       setState(() {
-        widget.selectedDate = picked;
+        selectedDate = picked;
       });
     }
   }
@@ -193,7 +213,7 @@ class _NewPlanInputDialogState extends ConsumerState<_NewPlanInputDialog> {
               children: <Widget>[
                 Expanded(
                   child: Text(
-                    'Datum: ${formatDateTime(widget.selectedDate!)}',
+                    'Datum: ${formatDateTime(selectedDate!)}',
                   ),
                 ),
                 TextButton(
@@ -231,7 +251,7 @@ class _NewPlanInputDialogState extends ConsumerState<_NewPlanInputDialog> {
             // Erstellt das neue DailyPlan-Objekt
             final newPlan = MealPlan(
               name: widget.titleController.text,
-              date: widget.selectedDate!,
+              date: selectedDate!,
             );
 
             // Schließt den Dialog und gibt das neue Objekt zurück

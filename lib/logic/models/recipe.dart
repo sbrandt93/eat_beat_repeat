@@ -1,23 +1,26 @@
 // lib/logic/models/recipe.dart
 
+import 'package:eat_beat_repeat/logic/interfaces/i_soft_deletable.dart';
 import 'package:eat_beat_repeat/logic/models/food_data.dart';
 import 'package:eat_beat_repeat/logic/models/macro_nutrients.dart';
 import 'package:eat_beat_repeat/logic/models/recipe_entry.dart';
 import 'package:eat_beat_repeat/logic/models/recipe_ingredient.dart'; // NEU: Unsere Zutatendefinition
+import 'package:eat_beat_repeat/logic/utils/wrapper.dart';
 import 'package:uuid/uuid.dart';
 
-class Recipe {
+class Recipe implements ISoftDeletable<Recipe> {
+  @override
   final String id;
   final String name;
-
-  // Wichtig: Jetzt verwenden wir die saubere Referenz-Klasse RecipeIngredient
   final List<RecipeIngredient> ingredients;
+  @override
+  final DateTime? deletedAt;
 
   // Wir vereinfachen die Felder quantity/unit, da wir 1.0 Portion als Standard annehmen.
   // Diese Felder sind für die Instanziierung im DailyPlan nicht notwendig,
   // da RecipeEntry später die 'servings' (Portionen) definiert.
   final double baseQuantity; // Standard 1.0 (Portion)
-  final String baseUnit; // Standard 'Portion'
+  final String baseUnit; // Standard 'Porti   on'
 
   Recipe._({
     required this.id,
@@ -25,11 +28,12 @@ class Recipe {
     required this.ingredients,
     required this.baseQuantity,
     required this.baseUnit,
+    this.deletedAt,
   });
 
   factory Recipe({
     required String name,
-    required List<RecipeIngredient> ingredients, // Anpassung hier
+    required List<RecipeIngredient> ingredients,
   }) {
     return Recipe._(
       id: const Uuid().v4(),
@@ -37,13 +41,16 @@ class Recipe {
       ingredients: ingredients,
       baseQuantity: 1.0,
       baseUnit: 'Portion',
+      deletedAt: null,
     );
   }
 
   // copyWith method (ID-sicher)
+  @override
   Recipe copyWith({
     String? name,
     List<RecipeIngredient>? ingredients,
+    Wrapper<DateTime?>? deletedAt,
   }) {
     return Recipe._(
       id: id,
@@ -51,6 +58,7 @@ class Recipe {
       ingredients: ingredients ?? this.ingredients,
       baseQuantity: baseQuantity,
       baseUnit: baseUnit,
+      deletedAt: deletedAt != null ? deletedAt.value : this.deletedAt,
     );
   }
 
@@ -126,6 +134,7 @@ class Recipe {
       'ingredients': ingredients.map((e) => e.toJson()).toList(),
       'baseQuantity': baseQuantity,
       'baseUnit': baseUnit,
+      'deletedAt': deletedAt?.toIso8601String(),
     };
   }
 
@@ -140,12 +149,15 @@ class Recipe {
           .toList(),
       baseQuantity: (json['baseQuantity'] as num?)?.toDouble() ?? 1.0,
       baseUnit: json['baseUnit'] as String? ?? 'Portion',
+      deletedAt: json['deletedAt'] != null
+          ? DateTime.parse(json['deletedAt'])
+          : null,
     );
   }
 
   // toString override für Debugging
   @override
   String toString() {
-    return 'Recipe(id: $id, name: $name, ingredients: $ingredients, baseQuantity: $baseQuantity, baseUnit: $baseUnit)';
+    return 'Recipe(id: $id, name: $name, ingredients: $ingredients, baseQuantity: $baseQuantity, baseUnit: $baseUnit, deletedAt: $deletedAt)';
   }
 }

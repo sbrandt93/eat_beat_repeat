@@ -2,7 +2,7 @@ import 'package:eat_beat_repeat/logic/models/food_entry.dart';
 import 'package:eat_beat_repeat/logic/provider/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:eat_beat_repeat/logic/helpers.dart'; // Für formatDateTime
+import 'package:eat_beat_repeat/logic/utils/helpers.dart'; // Für formatDateTime
 
 // --- PLATZHALTER FUNKTIONEN FÜR DIE NAVIGATION (Muss von Ihnen verknüpft werden) ---
 void _navigateToNewRecipePage(BuildContext context) {
@@ -195,7 +195,7 @@ class MealPlanDetailPage extends ConsumerWidget {
     final predefinedFoodsMap = ref.read(predefinedFoodProvider);
     final predefinedFoods = predefinedFoodsMap.values.toList();
     // Hier müsste man eigentlich auch die FoodData auflösen, um mehr Infos zu zeigen.
-    final foodDataMap = ref.read(foodDataProvider);
+    final foodDataMap = ref.read(foodDataMapProvider);
 
     showDialog(
       context: context,
@@ -224,7 +224,6 @@ class MealPlanDetailPage extends ConsumerWidget {
                           color: Colors.teal,
                         ),
                         onTap: () {
-                          print('PORTION: $portion');
                           // TODO: Hier Logik zum Hinzufügen des PredefinedFood-Eintrags zum Plan
                           ref
                               .read(mealPlanProvider.notifier)

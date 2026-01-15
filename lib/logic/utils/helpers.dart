@@ -18,3 +18,21 @@ String formatDateTime(DateTime date) {
 // String formatDateTimeWithTime(DateTime date) {
 //   // ... zusätzliche Logik für Stunden und Minuten ...
 // }
+
+/// Berechnet die Differenz zwischen zwei [DateTime]-Objekten und gibt die zeit in tagen, stunden, minuten oder sekunden zurück.
+
+String timeDifference(DateTime from, DateTime to) {
+  final difference = to.difference(from);
+
+  if (difference.inDays > 0) {
+    return '${difference.inDays} Tage';
+  } else if (difference.inHours > 0) {
+    return '${difference.inHours} Stunden';
+  } else if (difference.inMinutes > 0) {
+    return '${difference.inMinutes} Minuten';
+  } else {
+    return '${difference.inSeconds} Sekunden';
+  }
+}
+
+const autoDeleteDuration = Duration(days: 30);

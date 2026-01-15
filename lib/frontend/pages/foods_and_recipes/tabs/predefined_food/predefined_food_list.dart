@@ -5,16 +5,17 @@ import 'package:eat_beat_repeat/logic/models/predefined_food.dart';
 import 'package:eat_beat_repeat/logic/provider/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class PredefinedFoodList extends ConsumerWidget {
   const PredefinedFoodList({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final predefinedFoodMap = ref.watch(predefinedFoodProvider);
-    final predefinedFoodList = predefinedFoodMap.values.toList();
-    final foodDataMap = ref.watch(foodDataProvider);
-    final foodDataList = foodDataMap.values.toList();
+    // final predefinedFoodMap = ref.watch(predefinedFoodProvider);
+    // final predefinedFoodList = predefinedFoodMap.values.toList();
+    final activePredefinedFoods = ref.watch(activePredefinedFoodsProvider);
+    final activeFoodData = ref.watch(activeFoodDataProvider);
 
     return Column(
       children: [
@@ -35,23 +36,24 @@ class PredefinedFoodList extends ConsumerWidget {
           ),
         ),
         Expanded(
-          child: predefinedFoodList.isEmpty
+          child: activePredefinedFoods.isEmpty
               ? const Center(
                   child: Text('Keine vordefinierten Portionen vorhanden.'),
                 )
               : ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  itemCount: predefinedFoodList.length,
+                  itemCount: activePredefinedFoods.length,
                   itemBuilder: (context, index) {
-                    final predefinedFood = predefinedFoodList[index];
-                    final foodData = foodDataMap[predefinedFood.foodDataId];
+                    final predefinedFood = activePredefinedFoods[index];
+                    final foodData = activeFoodData[predefinedFood.foodDataId];
                     final macros = ref
                         .read(macroServiceProvider)
                         .calculateMacrosForPredefinedFood(predefinedFood);
                     return CustomCard(
                       key: ValueKey(predefinedFood.id),
                       avatarColor: Colors.teal.shade100,
-                      avatarIcon: Icons.apple,
+                      avatarIcon: LucideIcons.banana,
+                      avatarIconColor: Colors.teal,
                       title: RichText(
                         text: TextSpan(
                           style: const TextStyle(
@@ -60,9 +62,14 @@ class PredefinedFoodList extends ConsumerWidget {
                           ),
                           children: [
                             TextSpan(
-                              text: foodData?.name ?? '<Unbekannt>',
-                              style: const TextStyle(
+                              text:
+                                  foodData?.name ??
+                                  '<Lebensmitteldaten gelöscht>',
+                              style: TextStyle(
                                 fontWeight: FontWeight.bold,
+                                color: foodData == null
+                                    ? Colors.red.shade300
+                                    : Colors.black,
                               ),
                             ),
                             if (foodData?.brandName.isNotEmpty ?? false)
@@ -79,11 +86,11 @@ class PredefinedFoodList extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Menge: ${predefinedFood.quantity.toStringAsFixed(1)}${foodData?.defaultUnit ?? 'N/A'}',
+                            'Menge: ${predefinedFood.quantity.toStringAsFixed(1)}${foodData?.defaultUnit ?? 'N/A'} | Nährwerte:',
                           ),
                           // macros berechnen using calculateMacrosForPredefinedFood
                           Text(
-                            '${macros.calories.toStringAsFixed(0)} Cal | ${macros.protein.toStringAsFixed(1)}${foodData?.defaultUnit ?? 'N/A'} Protein | ${macros.carbs.toStringAsFixed(1)}${foodData?.defaultUnit ?? 'N/A'} Carbs | ${macros.fat.toStringAsFixed(1)}${foodData?.defaultUnit ?? 'N/A'} Fat',
+                            '${macros.calories.toStringAsFixed(0)} Cal | ${macros.protein.toStringAsFixed(1)}g Protein | ${macros.carbs.toStringAsFixed(1)}g Carbs | ${macros.fat.toStringAsFixed(1)}g Fat',
                           ),
                         ],
                       ),
@@ -100,37 +107,9 @@ class PredefinedFoodList extends ConsumerWidget {
                       onDiscarding: () {
                         ref
                             .read(predefinedFoodProvider.notifier)
-                            .remove(predefinedFood.id);
+                            .moveToTrash(predefinedFood.id);
                       },
                     );
-                    // Card(
-                    //   elevation: 2,
-                    //   shape: RoundedRectangleBorder(
-                    //     borderRadius: BorderRadius.circular(12),
-                    //   ),
-                    //   margin: const EdgeInsets.only(bottom: 12),
-                    //   child: ListTile(
-                    //     leading: CircleAvatar(
-                    //       backgroundColor: Colors.teal.shade100,
-                    //       child: Icon(
-                    //         Icons.inventory_2,
-                    //         color: Colors.teal.shade600,
-                    //       ),
-                    //     ),
-                    //     title: Text(
-                    //       // Anzeige: Name aus FoodData, nicht aus PredefinedFood sondern aus FoodData nehmen per ID
-                    //       foodDataMap[pf.foodDataId]?.name ?? 'Unbekannt',
-                    //       style: const TextStyle(fontWeight: FontWeight.bold),
-                    //     ),
-                    //     subtitle: Text(
-                    //       'Menge: ${pf.quantity.toStringAsFixed(1)} ${fd?.defaultUnit ?? 'N/A'} von ${fd?.name ?? 'Unbekannt'}',
-                    //     ),
-                    //     trailing: const Icon(Icons.chevron_right),
-                    //     onTap: () {
-                    //       // TODO: Implementierung Bearbeitungs-Dialog
-                    //     },
-                    //   ),
-                    // );
                   },
                 ),
         ),
@@ -144,7 +123,7 @@ void _showPredefinedFoodDialog(
   WidgetRef ref, {
   PredefinedFood? existingPredefinedFood,
 }) {
-  final foodDataList = ref.read(foodDataProvider);
+  final foodDataList = ref.read(foodDataMapProvider);
   if (foodDataList.isEmpty) {
     // Benutzerfreundliche Meldung, falls keine FoodData existiert
     ScaffoldMessenger.of(context).showSnackBar(

@@ -3,6 +3,7 @@ import 'package:eat_beat_repeat/frontend/pages/foods_and_recipes/tabs/predefined
 import 'package:eat_beat_repeat/frontend/pages/foods_and_recipes/tabs/recipes/recipes_list.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class FooodsAndRecipesPage extends ConsumerWidget {
   const FooodsAndRecipesPage({super.key});
@@ -11,35 +12,59 @@ class FooodsAndRecipesPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // Liste der Tabs
     const tabs = [
-      Tab(text: 'FoodData', icon: Icon(Icons.food_bank_outlined)),
+      Tab(text: 'Rezepte', icon: Icon(LucideIcons.cookingPot)),
       Tab(
-        text: 'Vordefinierte Portionen',
-        icon: Icon(Icons.inventory_2_outlined),
+        text: 'Portionen',
+        icon: Icon(LucideIcons.banana),
       ),
-      Tab(text: 'Rezepte', icon: Icon(Icons.restaurant_menu_outlined)),
+      Tab(text: 'Daten', icon: Icon(LucideIcons.notebookText)),
     ];
 
     return DefaultTabController(
       length: tabs.length,
       child: Scaffold(
+        backgroundColor: Colors.teal.shade50,
         appBar: AppBar(
-          title: const Text('Lebensmittel- und Rezeptverwaltung'),
-          backgroundColor: Colors.indigo.shade600,
-          foregroundColor: Colors.white,
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              Image.asset(
+                'assets/vion/vion_lick.png',
+                height: 50,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: const Text(
+                    'Lebensmittel & Rezepte',
+                    style: TextStyle(
+                      color: Colors.teal,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          // backgroundColor: Colors.white54,
           bottom: TabBar(
             tabs: tabs,
             indicatorColor: Colors.white,
-            labelColor: Colors.white,
-            unselectedLabelColor: Colors.indigo.shade200,
+            labelColor: Colors.teal,
+            unselectedLabelColor: Colors.black54,
             indicatorSize: TabBarIndicatorSize.tab,
-            labelStyle: const TextStyle(fontWeight: FontWeight.bold),
+            labelStyle: const TextStyle(
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
         body: TabBarView(
           children: [
-            FoodDataList(),
-            PredefinedFoodList(),
             RecipeList(),
+            PredefinedFoodList(),
+            FoodDataList(),
           ],
         ),
       ),
