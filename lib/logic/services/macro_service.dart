@@ -35,7 +35,6 @@ class MacroService {
   /// Berechnet die Makros für eine Menge einer FoodData.
   MacroNutrients _calculateBaseMacros(String foodDataId, double quantity) {
     final foodData = getFoodData(foodDataId);
-    print('Calculating macros for FoodData: $foodData');
     if (foodData == null) {
       return MacroNutrients.zero();
     }
@@ -62,7 +61,6 @@ class MacroService {
 
   /// 2. Berechnet die Makros für ein PredefinedFood oder FoodEntry.
   MacroNutrients calculateMacrosForFoodEntry(FoodEntry entry) {
-    print('1Calculating macros for FoodEntry: $entry');
     // Annahme: FoodEntry enthält foodDataId und Quantity
     return _calculateBaseMacros(
       entry.foodDataId,
@@ -75,7 +73,6 @@ class MacroService {
     return recipe.ingredients.fold(
       MacroNutrients.zero(),
       (sum, ingredient) {
-        print('SUM: ${sum + calculateMacrosForRecipeIngredient(ingredient)}');
         // Nutzt die Ingredient-Berechnung des Service
         return sum + calculateMacrosForRecipeIngredient(ingredient);
       },

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:eat_beat_repeat/frontend/pages/workouts/workouts_page.dart';
 import 'package:eat_beat_repeat/frontend/pages/profile/profile_page.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class MainPage extends ConsumerStatefulWidget {
   const MainPage({super.key});
@@ -48,46 +49,80 @@ class _MainPageState extends ConsumerState<MainPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // HIER ist der Schlüssel: IndexedStack
-      // Zeigt nur das Widget an der Position '_selectedIndex'.
-      // Die anderen Widgets bleiben im Speicher erhalten.
+      backgroundColor: Colors.teal.shade50,
       body: IndexedStack(
         index: _selectedIndex,
         children: _pages,
       ),
 
       // Die Bottom Navigation Bar
-      bottomNavigationBar: NavigationBar(
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        indicatorColor: Theme.of(
-          context,
-        ).colorScheme.onPrimary.withOpacity(0.2), // Visueller Indikator
-        selectedIndex: _selectedIndex, // Zeigt an, welcher Tab aktiv ist
-        onDestinationSelected:
-            _onItemTapped, // Ruft die Methode zum Wechseln auf
+      bottomNavigationBar: NavigationBarTheme(
+        data: NavigationBarThemeData(
+          iconTheme: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) {
+              return const IconThemeData(
+                color: Colors.teal,
+              );
+            }
+            return const IconThemeData(
+              color: Colors.black54,
+            );
+          }),
+          labelTextStyle: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) {
+              return const TextStyle(
+                color: Colors.teal,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              );
+            }
+            return const TextStyle(
+              color: Colors.black54,
+              fontSize: 12,
+            );
+          }),
+        ),
+        child: NavigationBar(
+          backgroundColor: Colors.white54,
+          indicatorColor: Theme.of(
+            context,
+          ).colorScheme.onPrimary,
+          selectedIndex: _selectedIndex, // Zeigt an, welcher Tab aktiv ist
+          onDestinationSelected: _onItemTapped,
 
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.book, color: Colors.white),
-            label: 'Recipes',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.fastfood, color: Colors.white),
-            label: 'Meal Plans',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.home, color: Colors.white),
-            label: 'Home',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.fitness_center, color: Colors.white),
-            label: 'Workouts',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person, color: Colors.white),
-            label: 'Profile',
-          ),
-        ],
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(
+                LucideIcons.book,
+              ),
+              label: 'Rezepte',
+            ),
+            NavigationDestination(
+              icon: Icon(
+                Icons.fastfood_outlined,
+              ),
+              label: 'Mahlzeiten',
+            ),
+            NavigationDestination(
+              icon: Icon(
+                Icons.home_outlined,
+              ),
+              label: 'Startseite',
+            ),
+            NavigationDestination(
+              icon: Icon(
+                Icons.fitness_center,
+              ),
+              label: 'Sport',
+            ),
+            NavigationDestination(
+              icon: Icon(
+                Icons.person_outline,
+              ),
+              label: 'Profil',
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -1,17 +1,17 @@
-// --- 3. REZEPT LISTE UND DETAILANSICHT ---
 import 'package:eat_beat_repeat/frontend/pages/foods_and_recipes/tabs/recipes/recipe_detail_screen.dart';
+import 'package:eat_beat_repeat/frontend/pages/shared/custom_card.dart';
 import 'package:eat_beat_repeat/logic/models/recipe.dart';
 import 'package:eat_beat_repeat/logic/provider/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class RecipeList extends ConsumerWidget {
   const RecipeList({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final recipeMap = ref.watch(recipeProvider);
-    final recipeList = recipeMap.values.toList();
+    final activeRecipes = ref.watch(activeRecipesProvider);
 
     return Column(
       children: [
@@ -23,7 +23,7 @@ class RecipeList extends ConsumerWidget {
             label: const Text('Neues Rezept anlegen'),
             style: ElevatedButton.styleFrom(
               minimumSize: const Size(double.infinity, 50),
-              backgroundColor: Colors.pink,
+              backgroundColor: Colors.teal,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -32,38 +32,42 @@ class RecipeList extends ConsumerWidget {
           ),
         ),
         Expanded(
-          child: recipeList.isEmpty
+          child: activeRecipes.isEmpty
               ? const Center(child: Text('Keine Rezepte vorhanden.'))
               : ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  itemCount: recipeList.length,
+                  itemCount: activeRecipes.length,
                   itemBuilder: (context, index) {
-                    final recipe = recipeList[index];
-                    return Card(
-                      elevation: 2,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                    final recipe = activeRecipes[index];
+                    final macros = ref
+                        .read(macroServiceProvider)
+                        .calculateMacrosForRecipe(recipe);
+                    return CustomCard(
+                      key: ValueKey(recipe.id),
+                      avatarColor: Colors.teal.shade100,
+                      avatarIcon: LucideIcons.cookingPot,
+                      avatarIconColor: Colors.teal,
+                      title: Text(
+                        recipe.name,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
-                      margin: const EdgeInsets.only(bottom: 12),
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: Colors.pink.shade100,
-                          child: Icon(
-                            Icons.local_dining,
-                            color: Colors.pink.shade600,
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Gesamnährwerte:',
                           ),
-                        ),
-                        title: Text(
-                          recipe!.name,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        subtitle: Text(
-                          '${recipe.ingredients.length} Zutaten',
-                        ),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () =>
-                            _navigateToRecipeDetail(context, ref, recipe),
+                          Text(
+                            '${macros.calories.toStringAsFixed(0)} Cal | ${macros.protein.toStringAsFixed(1)}g Protein | ${macros.carbs.toStringAsFixed(1)}g Carbs | ${macros.fat.toStringAsFixed(1)}g Fat',
+                          ),
+                        ],
                       ),
+                      onTap: () => _editRecipe(context, ref, recipe),
+                      onDiscarding: () {
+                        ref
+                            .read(recipeProvider.notifier)
+                            .moveToTrash(recipe.id);
+                      },
                     );
                   },
                 ),
@@ -74,10 +78,22 @@ class RecipeList extends ConsumerWidget {
 
   void _startNewRecipe(BuildContext context, WidgetRef ref) {
     final newRecipe = Recipe(
-      name: 'Neues Rezept',
+      name: '',
       ingredients: [],
     );
     _navigateToRecipeDetail(context, ref, newRecipe);
+  }
+
+  void _editRecipe(
+    BuildContext context,
+    WidgetRef ref,
+    Recipe currentRecipe,
+  ) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => RecipeDetailScreen(recipe: currentRecipe),
+      ),
+    );
   }
 
   void _navigateToRecipeDetail(

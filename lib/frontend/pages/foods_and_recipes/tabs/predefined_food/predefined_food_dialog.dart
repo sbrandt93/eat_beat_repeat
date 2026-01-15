@@ -23,14 +23,13 @@ class _PredefinedFoodDialogState extends ConsumerState<PredefinedFoodDialog> {
     if (widget.existingPredefinedFood != null) {
       _selectedFoodDataId = widget.existingPredefinedFood!.foodDataId;
       _quantity = widget.existingPredefinedFood!.quantity;
-      print('quantity: $_quantity');
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final foodDataMap = ref.watch(foodDataProvider);
-    final selectedFoodData = foodDataMap[_selectedFoodDataId];
+    final activeFoodData = ref.watch(activeFoodDataProvider);
+    final selectedFoodData = activeFoodData[_selectedFoodDataId];
     final isEdit = widget.existingPredefinedFood != null;
 
     return AlertDialog(
@@ -47,8 +46,8 @@ class _PredefinedFoodDialogState extends ConsumerState<PredefinedFoodDialog> {
                 decoration: const InputDecoration(
                   labelText: 'Lebensmittel wählen',
                 ),
-                initialValue: _selectedFoodDataId,
-                items: foodDataMap.values.map((foodData) {
+                initialValue: selectedFoodData?.id,
+                items: activeFoodData.values.map((foodData) {
                   return DropdownMenuItem(
                     value: foodData.id,
                     child: Text('${foodData.name} (${foodData.brandName})'),
@@ -140,14 +139,16 @@ class _PredefinedFoodDialogState extends ConsumerState<PredefinedFoodDialog> {
   void _savePredefinedFood() {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
-      final predefinedFoodNotifier = ref.read(predefinedFoodProvider.notifier);
+      final predefinedFoodNotifier = ref.read(
+        predefinedFoodProvider.notifier,
+      );
       if (widget.existingPredefinedFood != null) {
         // Update existing
         final updatedPredefinedFood = widget.existingPredefinedFood!.copyWith(
           foodDataId: _selectedFoodDataId!,
           quantity: _quantity,
         );
-        predefinedFoodNotifier.update(
+        predefinedFoodNotifier.upsert(
           updatedPredefinedFood,
         );
       } else {
@@ -156,7 +157,7 @@ class _PredefinedFoodDialogState extends ConsumerState<PredefinedFoodDialog> {
           foodDataId: _selectedFoodDataId!,
           quantity: _quantity,
         );
-        predefinedFoodNotifier.add(
+        predefinedFoodNotifier.upsert(
           newPredefinedFood,
         );
       }

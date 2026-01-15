@@ -5,6 +5,7 @@ class CustomCard extends StatelessWidget {
     required super.key,
     required this.avatarColor,
     required this.avatarIcon,
+    required this.avatarIconColor,
     required this.title,
     required this.subtitle,
     required this.onTap,
@@ -13,6 +14,7 @@ class CustomCard extends StatelessWidget {
 
   final Color avatarColor;
   final IconData avatarIcon;
+  final Color avatarIconColor;
   final Widget title;
   final Widget subtitle;
   final Function onTap;
@@ -21,6 +23,26 @@ class CustomCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Dismissible(
+      // confirmDismiss: (direction) => showDialog<bool>(
+      //   context: context,
+      //   builder: (context) => CustomAlertDialog(
+      //     type: AlertType.delete,
+      //     title: 'Eintrag löschen?',
+      //     content: 'Möchten Sie diesen Eintrag wirklich löschen?',
+      //     actions: Row(
+      //       children: [
+      //         TextButton(
+      //           onPressed: () => Navigator.of(context).pop(false),
+      //           child: const Text('Abbrechen'),
+      //         ),
+      //         TextButton(
+      //           onPressed: () => Navigator.of(context).pop(true),
+      //           child: const Text('Löschen'),
+      //         ),
+      //       ],
+      //     ),
+      //   ),
+      // ),
       key: key!,
       direction: DismissDirection.startToEnd,
       background: Container(
@@ -46,11 +68,15 @@ class CustomCard extends StatelessWidget {
             backgroundColor: avatarColor,
             child: Icon(
               avatarIcon,
-              color: Colors.indigo,
+              color: avatarIconColor,
             ),
           ),
           title: title,
           subtitle: subtitle,
+          trailing: Icon(
+            Icons.delete_sweep,
+            color: Colors.grey,
+          ),
           onTap: onTap as void Function(),
         ),
       ),

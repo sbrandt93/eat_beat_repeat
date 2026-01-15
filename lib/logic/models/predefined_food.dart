@@ -1,14 +1,20 @@
+import 'package:eat_beat_repeat/logic/interfaces/i_soft_deletable.dart';
+import 'package:eat_beat_repeat/logic/utils/wrapper.dart';
 import 'package:uuid/uuid.dart';
 
-class PredefinedFood {
+class PredefinedFood implements ISoftDeletable<PredefinedFood> {
+  @override
   final String id;
   final String foodDataId;
   final double quantity;
+  @override
+  final DateTime? deletedAt;
 
   PredefinedFood._({
     required this.id,
     required this.foodDataId,
     required this.quantity,
+    this.deletedAt,
   });
 
   factory PredefinedFood({
@@ -19,18 +25,21 @@ class PredefinedFood {
       id: Uuid().v4(),
       foodDataId: foodDataId,
       quantity: quantity,
+      deletedAt: null,
     );
   }
 
-  // copyWith method (ID-sicher)
+  @override
   PredefinedFood copyWith({
     String? foodDataId,
     double? quantity,
+    Wrapper<DateTime?>? deletedAt,
   }) {
     return PredefinedFood._(
       id: id,
       foodDataId: foodDataId ?? this.foodDataId,
       quantity: quantity ?? this.quantity,
+      deletedAt: deletedAt != null ? deletedAt.value : this.deletedAt,
     );
   }
 
@@ -40,6 +49,7 @@ class PredefinedFood {
       'id': id,
       'foodDataId': foodDataId,
       'quantity': quantity,
+      'deletedAt': deletedAt?.toIso8601String(),
     };
   }
 
@@ -49,12 +59,15 @@ class PredefinedFood {
       id: json['id'] as String,
       foodDataId: json['foodDataId'] as String,
       quantity: (json['quantity'] as num?)?.toDouble() ?? 0.0,
+      deletedAt: json['deletedAt'] != null
+          ? DateTime.parse(json['deletedAt'])
+          : null,
     );
   }
 
   // toString override für Debugging
   @override
   String toString() {
-    return 'PredefinedFood(id: $id, foodDataId: $foodDataId, quantity: $quantity)';
+    return 'PredefinedFood(id: $id, foodDataId: $foodDataId, quantity: $quantity, deletedAt: $deletedAt)';
   }
 }

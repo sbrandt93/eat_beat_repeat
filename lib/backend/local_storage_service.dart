@@ -34,7 +34,6 @@ class LocalStorageService implements IStorageService {
         return (decoded is Map<String, dynamic>) ? decoded : {};
       } catch (e) {
         // Fehlerbehandlung beim Lesen/Parsen
-        print('Error loading $fileName: $e');
         return {};
       }
     }

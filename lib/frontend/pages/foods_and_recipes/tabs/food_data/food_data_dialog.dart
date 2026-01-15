@@ -1,7 +1,7 @@
-import 'package:eat_beat_repeat/logic/enums.dart';
+import 'package:eat_beat_repeat/logic/provider/providers.dart';
+import 'package:eat_beat_repeat/logic/utils/enums.dart';
 import 'package:eat_beat_repeat/logic/models/food_data.dart';
 import 'package:eat_beat_repeat/logic/models/macro_nutrients.dart';
-import 'package:eat_beat_repeat/logic/provider/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -199,7 +199,7 @@ class _FoodDataDialogState extends ConsumerState<FoodDataDialog> {
           defaultUnit: _unit,
           macrosPer100unit: macros,
         );
-        ref.read(foodDataProvider.notifier).update(updatedFood);
+        ref.read(foodDataMapProvider.notifier).upsert(updatedFood);
         Navigator.of(context).pop();
         return;
       } else {
@@ -210,7 +210,7 @@ class _FoodDataDialogState extends ConsumerState<FoodDataDialog> {
           defaultUnit: _unit,
           macrosPer100unit: macros,
         );
-        ref.read(foodDataProvider.notifier).add(newFood);
+        ref.read(foodDataMapProvider.notifier).upsert(newFood);
       }
       Navigator.of(context).pop();
     }
