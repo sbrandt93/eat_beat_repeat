@@ -1,14 +1,15 @@
 import 'package:eat_beat_repeat/backend/local_storage_service.dart';
 import 'package:eat_beat_repeat/logic/interfaces/i_storage_service.dart';
 import 'package:eat_beat_repeat/logic/models/food_data.dart';
-import 'package:eat_beat_repeat/logic/models/meal_plan.dart';
+import 'package:eat_beat_repeat/logic/models/nutrition_plan.dart';
 import 'package:eat_beat_repeat/logic/models/predefined_food.dart';
 import 'package:eat_beat_repeat/logic/models/recipe.dart';
 import 'package:eat_beat_repeat/logic/provider/food_data_notifier.dart';
-import 'package:eat_beat_repeat/logic/provider/meal_plan_notifier.dart';
+import 'package:eat_beat_repeat/logic/provider/nutrition_plan_notifier.dart';
 import 'package:eat_beat_repeat/logic/provider/predefined_food_notifier.dart';
 import 'package:eat_beat_repeat/logic/provider/recipe_notifier.dart';
 import 'package:eat_beat_repeat/logic/services/macro_service.dart';
+import 'package:eat_beat_repeat/logic/services/nutrition_plan_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
@@ -43,17 +44,32 @@ final trashedFoodDataProvider = Provider<Map<String, FoodData>>((ref) {
 
 // ======================================================================
 
-/// Die zentrale Quelle für alle MealPlans in der App.
-/// Liefert ein **[Map<String, MealPlan>]**, wobei der Schlüssel
-/// die eindeutige MealPlan-ID ist.
-final mealPlanProvider =
-    StateNotifierProvider<MealPlanNotifier, Map<String, MealPlan>>(
-      // Umbenannter Provider
+/// Die zentrale Quelle für alle Ernährungspläne in der App.
+/// Liefert ein **[Map<String, NutritionPlan>]**, wobei der Schlüssel
+/// die eindeutige Plan-ID ist.
+final nutritionPlanProvider =
+    StateNotifierProvider<NutritionPlanNotifier, Map<String, NutritionPlan>>(
       (ref) {
         final storageService = ref.watch(storageServiceProvider);
-        return MealPlanNotifier(storageService);
+        return NutritionPlanNotifier(storageService);
       },
     );
+
+final activeNutritionPlansProvider = Provider<List<NutritionPlan>>((ref) {
+  final allPlans = ref.watch(nutritionPlanProvider).values;
+  return allPlans.where((plan) => plan.deletedAt == null).toList();
+});
+
+/// Der Provider für den NutritionPlanService.
+/// Er erhält FoodDataMap und RecipeMap als Abhängigkeiten.
+final nutritionPlanServiceProvider = Provider<NutritionPlanService>((ref) {
+  final foodDataMap = ref.watch(foodDataMapProvider);
+  final recipeMap = ref.watch(recipeProvider);
+  return NutritionPlanService(
+    foodDataMap: foodDataMap,
+    recipeMap: recipeMap,
+  );
+});
 
 // ======================================================================
 

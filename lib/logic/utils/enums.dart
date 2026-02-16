@@ -10,3 +10,10 @@ enum FoodUnit {
   static List<String> get displayValues =>
       FoodUnit.values.map((unit) => unit.displayString).toList();
 }
+
+enum RecurrencePattern {
+  daily, // Jeden Tag
+  weekdays, // Mo-Fr
+  weekends, // Sa-So
+  specificDaysOfWeek, // z.B. Mo, Mi, Fr
+}

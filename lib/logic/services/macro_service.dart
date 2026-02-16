@@ -1,11 +1,9 @@
 import 'package:eat_beat_repeat/logic/models/food_data.dart';
 import 'package:eat_beat_repeat/logic/models/macro_nutrients.dart';
+import 'package:eat_beat_repeat/logic/models/meal_entry.dart';
 import 'package:eat_beat_repeat/logic/models/predefined_food.dart';
 import 'package:eat_beat_repeat/logic/models/recipe_ingredient.dart';
 import 'package:eat_beat_repeat/logic/models/recipe.dart';
-import 'package:eat_beat_repeat/logic/models/food_entry.dart';
-import 'package:eat_beat_repeat/logic/models/recipe_entry.dart';
-import 'package:eat_beat_repeat/logic/models/meal_plan.dart';
 
 // ======================================================================
 // MACRO SERVICE CLASS
@@ -107,26 +105,7 @@ class MacroService {
   }
 
   /// 5. Berechnet die Makros für einen gesamten MealPlan.
-  MacroNutrients calculateMacrosForMealPlan(
-    MealPlan plan,
-    Map<String, Recipe> recipeMap,
-  ) {
-    return plan.entries.fold(
-      MacroNutrients.zero(),
-      (sum, entry) {
-        if (entry is FoodEntry) {
-          return sum + calculateMacrosForFoodEntry(entry);
-        } else if (entry is RecipeEntry) {
-          final recipe = recipeMap[entry.recipeId];
-          if (recipe != null) {
-            final baseMacros = calculateMacrosForRecipe(recipe);
-            return sum + baseMacros.scale(entry.servings);
-          }
-        }
-        return sum;
-      },
-    );
-  }
+  // TODO
 
   // Berechnet die Makros für ein PredefinedFood
   MacroNutrients calculateMacrosForPredefinedFood(PredefinedFood predefined) {

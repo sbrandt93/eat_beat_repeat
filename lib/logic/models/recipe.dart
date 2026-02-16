@@ -3,7 +3,7 @@
 import 'package:eat_beat_repeat/logic/interfaces/i_soft_deletable.dart';
 import 'package:eat_beat_repeat/logic/models/food_data.dart';
 import 'package:eat_beat_repeat/logic/models/macro_nutrients.dart';
-import 'package:eat_beat_repeat/logic/models/recipe_entry.dart';
+import 'package:eat_beat_repeat/logic/models/meal_entry.dart';
 import 'package:eat_beat_repeat/logic/models/recipe_ingredient.dart'; // NEU: Unsere Zutatendefinition
 import 'package:eat_beat_repeat/logic/utils/wrapper.dart';
 import 'package:uuid/uuid.dart';
@@ -20,7 +20,7 @@ class Recipe implements ISoftDeletable<Recipe> {
   // Diese Felder sind für die Instanziierung im DailyPlan nicht notwendig,
   // da RecipeEntry später die 'servings' (Portionen) definiert.
   final double baseQuantity; // Standard 1.0 (Portion)
-  final String baseUnit; // Standard 'Porti   on'
+  final String baseUnit; // Standard 'Portion'
 
   Recipe._({
     required this.id,
@@ -117,9 +117,12 @@ class Recipe implements ISoftDeletable<Recipe> {
   }
 
   // Recipe to RecipeEntry Konvertierung
-  RecipeEntry toRecipeEntry({double servings = 1.0}) {
+  RecipeEntry toRecipeEntry({
+    required String entryName,
+    required double servings,
+  }) {
     return RecipeEntry(
-      name: name,
+      name: entryName,
       recipeId: id,
       servings: servings,
     );
