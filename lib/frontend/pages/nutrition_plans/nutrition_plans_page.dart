@@ -102,6 +102,7 @@ class NutritionPlansPage extends ConsumerWidget {
   ) async {
     final result = await showDialog<NutritionPlan?>(
       context: context,
+      barrierDismissible: false,
       builder: (context) => const CreateNutritionPlanDialog(),
     );
 
@@ -375,96 +376,176 @@ class _CreateNutritionPlanDialogState
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Neuer Ernährungsplan'),
-      content: SingleChildScrollView(
+    final screenHeight = MediaQuery.of(context).size.height;
+
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      child: Container(
+        width: 500,
+        constraints: BoxConstraints(
+          maxWidth: 500,
+          maxHeight: screenHeight * 0.85,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Name
-            TextField(
-              controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: 'Plan-Name',
-                hintText: 'z.B. "Definitionsphase"',
-                border: OutlineInputBorder(),
+            _buildHeader(),
+            const Divider(height: 1),
+            Flexible(
+              child: SingleChildScrollView(
+                child: _buildContent(),
               ),
             ),
-            const SizedBox(height: 16),
-
-            // Startdatum
-            _buildDatePicker(
-              label: 'Startdatum',
-              date: _startDate,
-              onTap: () => _selectDate(true),
-            ),
-            const SizedBox(height: 12),
-
-            // Enddatum (optional)
-            Row(
-              children: [
-                Checkbox(
-                  value: _hasEndDate,
-                  onChanged: (v) => setState(() => _hasEndDate = v ?? false),
-                ),
-                const Text('Enddatum festlegen'),
-              ],
-            ),
-            if (_hasEndDate)
-              _buildDatePicker(
-                label: 'Enddatum',
-                date: _endDate ?? _startDate.add(const Duration(days: 30)),
-                onTap: () => _selectDate(false),
-              ),
-
-            const SizedBox(height: 20),
-            const Divider(),
-            const SizedBox(height: 12),
-
-            // Makro-Ziele
-            const Text(
-              'Tägliche Makro-Ziele',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-            const SizedBox(height: 12),
-
-            Row(
-              children: [
-                Expanded(
-                  child: _buildMacroInput('Kcal', _caloriesController),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildMacroInput('Protein (g)', _proteinController),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildMacroInput('Carbs (g)', _carbsController),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildMacroInput('Fett (g)', _fatController),
-                ),
-              ],
-            ),
+            _buildFooter(),
           ],
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Abbrechen'),
-        ),
-        FilledButton(
-          onPressed: _createPlan,
-          child: const Text('Erstellen'),
-        ),
-      ],
+    );
+  }
+
+  Widget _buildHeader() {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          const Expanded(
+            child: Text(
+              'Neuer Ernährungsplan',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(LucideIcons.x),
+            onPressed: () => Navigator.pop(context),
+            tooltip: 'Schließen',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContent() {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Name
+          const Text(
+            'Plan-Name',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _nameController,
+            decoration: const InputDecoration(
+              hintText: 'z.B. "Definitionsphase"',
+              border: OutlineInputBorder(),
+              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Startdatum
+          const Text(
+            'Zeitraum',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          _buildDatePicker(
+            label: 'Startdatum',
+            date: _startDate,
+            onTap: () => _selectDate(true),
+          ),
+          const SizedBox(height: 12),
+
+          // Enddatum (optional)
+          Row(
+            children: [
+              Checkbox(
+                value: _hasEndDate,
+                onChanged: (v) => setState(() => _hasEndDate = v ?? false),
+              ),
+              const Text('Enddatum festlegen'),
+            ],
+          ),
+          if (_hasEndDate)
+            _buildDatePicker(
+              label: 'Enddatum',
+              date: _endDate ?? _startDate.add(const Duration(days: 30)),
+              onTap: () => _selectDate(false),
+            ),
+
+          const SizedBox(height: 16),
+          const Divider(),
+          const SizedBox(height: 12),
+
+          // Makro-Ziele
+          const Text(
+            'Tägliche Makro-Ziele',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          const SizedBox(height: 12),
+
+          Row(
+            children: [
+              Expanded(
+                child: _buildMacroInput('Kcal', _caloriesController),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildMacroInput('Protein (g)', _proteinController),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _buildMacroInput('Carbs (g)', _carbsController),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildMacroInput('Fett (g)', _fatController),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFooter() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: Colors.grey.shade300)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: OutlinedButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Abbrechen'),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: ElevatedButton.icon(
+              onPressed: _createPlan,
+              icon: const Icon(LucideIcons.check),
+              label: const Text('Erstellen'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.teal,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -494,6 +575,7 @@ class _CreateNutritionPlanDialogState
         labelText: label,
         border: const OutlineInputBorder(),
         isDense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       ),
     );
   }

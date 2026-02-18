@@ -1,12 +1,11 @@
+import 'package:eat_beat_repeat/frontend/pages/nutrition_plans/add_meal_dialog.dart';
 import 'package:eat_beat_repeat/logic/models/day_override.dart';
 import 'package:eat_beat_repeat/logic/models/macro_nutrients.dart';
 import 'package:eat_beat_repeat/logic/models/meal_entry.dart';
 import 'package:eat_beat_repeat/logic/models/nutrition_plan.dart';
-import 'package:eat_beat_repeat/logic/models/recurrence_rule.dart';
 import 'package:eat_beat_repeat/logic/models/recurring_meal_template.dart';
 import 'package:eat_beat_repeat/logic/provider/providers.dart';
 import 'package:eat_beat_repeat/logic/services/nutrition_plan_service.dart';
-import 'package:eat_beat_repeat/logic/utils/enums.dart';
 import 'package:eat_beat_repeat/logic/utils/helpers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -132,12 +131,10 @@ class _NutritionPlanDetailContent extends ConsumerWidget {
     WidgetRef ref,
     DateTime selectedDate,
   ) {
-    showModalBottomSheet(
+    showAddMealDialog(
       context: context,
-      builder: (context) => _AddMealBottomSheet(
-        plan: plan,
-        selectedDate: selectedDate,
-      ),
+      plan: plan,
+      selectedDate: selectedDate,
     );
   }
 }
@@ -238,11 +235,24 @@ class _DateNavigator extends ConsumerWidget {
   }
 
   Future<void> _selectDate(BuildContext context, WidgetRef ref) async {
+    // Ensure initialDate is within valid range
+    final firstDate = plan.startDate.isBefore(DateTime(2020))
+        ? DateTime(2020)
+        : plan.startDate;
+    final lastDate = plan.endDate ?? DateTime(2030);
+    DateTime initialDate = selectedDate;
+    if (initialDate.isBefore(firstDate)) {
+      initialDate = firstDate;
+    }
+    if (initialDate.isAfter(lastDate)) {
+      initialDate = lastDate;
+    }
+
     final picked = await showDatePicker(
       context: context,
-      initialDate: selectedDate,
-      firstDate: plan.startDate,
-      lastDate: plan.endDate ?? DateTime(2030),
+      initialDate: initialDate,
+      firstDate: firstDate,
+      lastDate: lastDate,
     );
     if (picked != null) {
       ref.read(selectedDateProvider.notifier).state = picked;
@@ -609,7 +619,7 @@ class _MealCard extends ConsumerWidget {
                 style: TextStyle(color: Colors.red),
               ),
               onTap: () {
-                // TODO: Remove from recurring meals
+                _removeMealFromPlan(context, ref);
                 Navigator.pop(context);
               },
             ),
@@ -651,448 +661,55 @@ class _MealCard extends ConsumerWidget {
       SnackBar(content: Text('${meal.name} für heute ausgeblendet')),
     );
   }
-}
 
-// ============================================================================
-// ADD MEAL BOTTOM SHEET
-// ============================================================================
+  void _removeMealFromPlan(BuildContext context, WidgetRef ref) {
+    // Find the template with this meal entry
+    final templateIndex = plan.recurringMeals.indexWhere(
+      (t) => t.mealEntry.id == meal.id,
+    );
 
-class _AddMealBottomSheet extends ConsumerStatefulWidget {
-  final NutritionPlan plan;
-  final DateTime selectedDate;
+    if (templateIndex == -1) {
+      // Meal not found in recurring meals, might be additional meal
+      // Check in day overrides
+      final service = ref.read(nutritionPlanServiceProvider);
+      final dateKey = service.dateKey(selectedDate);
+      final existingOverride = plan.dayOverrides[dateKey];
 
-  const _AddMealBottomSheet({
-    required this.plan,
-    required this.selectedDate,
-  });
+      if (existingOverride != null) {
+        final updatedAdditionalMeals = existingOverride.additionalMeals
+            .where((m) => m.id != meal.id)
+            .toList();
 
-  @override
-  ConsumerState<_AddMealBottomSheet> createState() =>
-      _AddMealBottomSheetState();
-}
-
-class _AddMealBottomSheetState extends ConsumerState<_AddMealBottomSheet> {
-  bool _isRecurring = true;
-  RecurrencePattern _selectedPattern = RecurrencePattern.daily;
-  final List<int> _selectedDays = [];
-
-  @override
-  Widget build(BuildContext context) {
-    final predefinedFoods = ref.watch(activePredefinedFoodsProvider);
-    final recipes = ref.watch(activeRecipesProvider);
-    final foodDataMap = ref.watch(activeFoodDataProvider);
-
-    return DraggableScrollableSheet(
-      initialChildSize: 0.7,
-      minChildSize: 0.5,
-      maxChildSize: 0.95,
-      expand: false,
-      builder: (context, scrollController) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(
-            children: [
-              // Handle
-              Container(
-                margin: const EdgeInsets.symmetric(vertical: 12),
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-
-              // Title
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16),
-                child: Text(
-                  'Mahlzeit hinzufügen',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Recurring Toggle
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _TabButton(
-                        label: 'Wiederkehrend',
-                        isSelected: _isRecurring,
-                        onTap: () => setState(() => _isRecurring = true),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _TabButton(
-                        label: 'Nur heute',
-                        isSelected: !_isRecurring,
-                        onTap: () => setState(() => _isRecurring = false),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Recurrence Pattern (if recurring)
-              if (_isRecurring) ...[
-                const SizedBox(height: 16),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: _RecurrenceSelector(
-                    selectedPattern: _selectedPattern,
-                    selectedDays: _selectedDays,
-                    onPatternChanged: (p) =>
-                        setState(() => _selectedPattern = p),
-                    onDaysChanged: (days) => setState(
-                      () => _selectedDays
-                        ..clear()
-                        ..addAll(days),
-                    ),
-                  ),
-                ),
-              ],
-
-              const Divider(height: 24),
-
-              // Food/Recipe List
-              Expanded(
-                child: DefaultTabController(
-                  length: 2,
-                  child: Column(
-                    children: [
-                      const TabBar(
-                        labelColor: Colors.teal,
-                        unselectedLabelColor: Colors.grey,
-                        tabs: [
-                          Tab(text: 'Portionen'),
-                          Tab(text: 'Rezepte'),
-                        ],
-                      ),
-                      Expanded(
-                        child: TabBarView(
-                          children: [
-                            // Predefined Foods
-                            ListView.builder(
-                              controller: scrollController,
-                              itemCount: predefinedFoods.length,
-                              itemBuilder: (context, index) {
-                                final food = predefinedFoods[index];
-                                final foodData = foodDataMap[food.foodDataId];
-                                final foodName = foodData?.name ?? 'Unbekannt';
-                                return ListTile(
-                                  leading: const CircleAvatar(
-                                    backgroundColor: Colors.orange,
-                                    child: Icon(
-                                      LucideIcons.banana,
-                                      color: Colors.white,
-                                      size: 20,
-                                    ),
-                                  ),
-                                  title: Text(foodName),
-                                  subtitle: Text('${food.quantity}g'),
-                                  onTap: () => _addFoodEntry(
-                                    foodName,
-                                    food.foodDataId,
-                                    food.quantity,
-                                  ),
-                                );
-                              },
-                            ),
-
-                            // Recipes
-                            ListView.builder(
-                              controller: scrollController,
-                              itemCount: recipes.length,
-                              itemBuilder: (context, index) {
-                                final recipe = recipes[index];
-                                return ListTile(
-                                  leading: const CircleAvatar(
-                                    backgroundColor: Colors.teal,
-                                    child: Icon(
-                                      LucideIcons.cookingPot,
-                                      color: Colors.white,
-                                      size: 20,
-                                    ),
-                                  ),
-                                  title: Text(recipe.name),
-                                  subtitle: Text(
-                                    '${recipe.ingredients.length} Zutaten',
-                                  ),
-                                  onTap: () =>
-                                      _addRecipeEntry(recipe.name, recipe.id),
-                                );
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
+        final newOverride = existingOverride.copyWith(
+          additionalMeals: updatedAdditionalMeals,
         );
-      },
-    );
-  }
 
-  void _addFoodEntry(String name, String foodDataId, double quantity) {
-    final entry = FoodEntry(
-      name: name,
-      foodDataId: foodDataId,
-      quantity: quantity,
-    );
-    _addMealEntry(entry);
-  }
+        final updatedPlan = plan.copyWith(
+          dayOverrides: {...plan.dayOverrides, dateKey: newOverride},
+        );
 
-  void _addRecipeEntry(String name, String recipeId) {
-    final entry = RecipeEntry(
-      name: name,
-      recipeId: recipeId,
-      servings: 1,
-    );
-    _addMealEntry(entry);
-  }
+        ref.read(nutritionPlanProvider.notifier).update(updatedPlan);
+      }
 
-  void _addMealEntry(MealEntry entry) {
-    final service = ref.read(nutritionPlanServiceProvider);
-
-    if (_isRecurring) {
-      // Add as recurring meal
-      final rule = _buildRecurrenceRule();
-      final template = RecurringMealTemplate(
-        mealEntry: entry,
-        rule: rule,
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${meal.name} entfernt')),
       );
-
-      final updatedPlan = widget.plan.copyWith(
-        recurringMeals: [...widget.plan.recurringMeals, template],
-      );
-
-      ref.read(nutritionPlanProvider.notifier).update(updatedPlan);
-    } else {
-      // Add as day-specific meal
-      final dateKey = service.dateKey(widget.selectedDate);
-      final existingOverride = widget.plan.dayOverrides[dateKey];
-
-      final newOverride = DayOverride(
-        dateKey: dateKey,
-        hiddenRecurringMealTemplateIds:
-            existingOverride?.hiddenRecurringMealTemplateIds ?? [],
-        additionalMeals: [
-          ...?existingOverride?.additionalMeals,
-          entry,
-        ],
-      );
-
-      final updatedPlan = widget.plan.copyWith(
-        dayOverrides: {...widget.plan.dayOverrides, dateKey: newOverride},
-      );
-
-      ref.read(nutritionPlanProvider.notifier).update(updatedPlan);
+      return;
     }
 
-    Navigator.pop(context);
+    // Remove from recurring meals
+    final updatedRecurringMeals = List<RecurringMealTemplate>.from(
+      plan.recurringMeals,
+    )..removeAt(templateIndex);
+
+    final updatedPlan = plan.copyWith(
+      recurringMeals: updatedRecurringMeals,
+    );
+
+    ref.read(nutritionPlanProvider.notifier).update(updatedPlan);
+
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${entry.name} hinzugefügt')),
-    );
-  }
-
-  RecurrenceRule _buildRecurrenceRule() {
-    switch (_selectedPattern) {
-      case RecurrencePattern.daily:
-        return RecurrenceRule.daily();
-      case RecurrencePattern.weekdays:
-        return RecurrenceRule.weekdays();
-      case RecurrencePattern.weekends:
-        return RecurrenceRule.weekends();
-      case RecurrencePattern.specificDaysOfWeek:
-        return RecurrenceRule.specificDaysOfWeek(
-          _selectedDays.isEmpty ? [DateTime.now().weekday] : _selectedDays,
-        );
-    }
-  }
-}
-
-class _TabButton extends StatelessWidget {
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _TabButton({
-    required this.label,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: isSelected ? Colors.teal : Colors.grey.shade200,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Center(
-          child: Text(
-            label,
-            style: TextStyle(
-              color: isSelected ? Colors.white : Colors.black87,
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _RecurrenceSelector extends StatelessWidget {
-  final RecurrencePattern selectedPattern;
-  final List<int> selectedDays;
-  final ValueChanged<RecurrencePattern> onPatternChanged;
-  final ValueChanged<List<int>> onDaysChanged;
-
-  const _RecurrenceSelector({
-    required this.selectedPattern,
-    required this.selectedDays,
-    required this.onPatternChanged,
-    required this.onDaysChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Wiederholung:',
-          style: TextStyle(fontWeight: FontWeight.w500),
-        ),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            _PatternChip(
-              label: 'Täglich',
-              isSelected: selectedPattern == RecurrencePattern.daily,
-              onTap: () => onPatternChanged(RecurrencePattern.daily),
-            ),
-            _PatternChip(
-              label: 'Wochentags',
-              isSelected: selectedPattern == RecurrencePattern.weekdays,
-              onTap: () => onPatternChanged(RecurrencePattern.weekdays),
-            ),
-            _PatternChip(
-              label: 'Wochenende',
-              isSelected: selectedPattern == RecurrencePattern.weekends,
-              onTap: () => onPatternChanged(RecurrencePattern.weekends),
-            ),
-            _PatternChip(
-              label: 'Bestimmte Tage',
-              isSelected:
-                  selectedPattern == RecurrencePattern.specificDaysOfWeek,
-              onTap: () =>
-                  onPatternChanged(RecurrencePattern.specificDaysOfWeek),
-            ),
-          ],
-        ),
-
-        // Day selector for specific days
-        if (selectedPattern == RecurrencePattern.specificDaysOfWeek) ...[
-          const SizedBox(height: 12),
-          _DaySelector(
-            selectedDays: selectedDays,
-            onChanged: onDaysChanged,
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-class _PatternChip extends StatelessWidget {
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _PatternChip({
-    required this.label,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return FilterChip(
-      label: Text(label),
-      selected: isSelected,
-      onSelected: (_) => onTap(),
-      selectedColor: Colors.teal.shade100,
-      checkmarkColor: Colors.teal,
-    );
-  }
-}
-
-class _DaySelector extends StatelessWidget {
-  final List<int> selectedDays;
-  final ValueChanged<List<int>> onChanged;
-
-  const _DaySelector({
-    required this.selectedDays,
-    required this.onChanged,
-  });
-
-  static const _days = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: List.generate(7, (index) {
-        final dayNumber = index + 1;
-        final isSelected = selectedDays.contains(dayNumber);
-        return GestureDetector(
-          onTap: () {
-            final newDays = List<int>.from(selectedDays);
-            if (isSelected) {
-              newDays.remove(dayNumber);
-            } else {
-              newDays.add(dayNumber);
-            }
-            onChanged(newDays);
-          },
-          child: Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: isSelected ? Colors.teal : Colors.grey.shade200,
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Text(
-                _days[index],
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: isSelected ? Colors.white : Colors.black87,
-                ),
-              ),
-            ),
-          ),
-        );
-      }),
+      SnackBar(content: Text('${meal.name} aus Plan entfernt')),
     );
   }
 }

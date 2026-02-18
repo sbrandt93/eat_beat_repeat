@@ -7,22 +7,37 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-class PredefinedFoodList extends ConsumerWidget {
+class PredefinedFoodList extends ConsumerStatefulWidget {
   const PredefinedFoodList({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // final predefinedFoodMap = ref.watch(predefinedFoodProvider);
-    // final predefinedFoodList = predefinedFoodMap.values.toList();
+  ConsumerState<PredefinedFoodList> createState() => _PredefinedFoodListState();
+}
+
+class _PredefinedFoodListState extends ConsumerState<PredefinedFoodList> {
+  String _searchQuery = '';
+
+  @override
+  Widget build(BuildContext context) {
     final activePredefinedFoods = ref.watch(activePredefinedFoodsProvider);
     final activeFoodData = ref.watch(activeFoodDataProvider);
+
+    // Filter by search query
+    final filteredList = _searchQuery.isEmpty
+        ? activePredefinedFoods
+        : activePredefinedFoods.where((pf) {
+            final foodData = activeFoodData[pf.foodDataId];
+            final query = _searchQuery.toLowerCase();
+            return (foodData?.name.toLowerCase().contains(query) ?? false) ||
+                (foodData?.brandName.toLowerCase().contains(query) ?? false);
+          }).toList();
 
     return Column(
       children: [
         Padding(
           padding: const EdgeInsets.all(16.0),
           child: ElevatedButton.icon(
-            onPressed: () => _showPredefinedFoodDialog(context, ref),
+            onPressed: () => _showPredefinedFoodDialog(context),
             icon: const Icon(Icons.add),
             label: const Text('Vordefinierte Portion anlegen'),
             style: ElevatedButton.styleFrom(
@@ -35,16 +50,45 @@ class PredefinedFoodList extends ConsumerWidget {
             ),
           ),
         ),
+        // Search field
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          child: TextField(
+            decoration: InputDecoration(
+              hintText: 'Suchen...',
+              prefixIcon: const Icon(LucideIcons.search),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 8,
+              ),
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(LucideIcons.x),
+                      onPressed: () => setState(() => _searchQuery = ''),
+                    )
+                  : null,
+            ),
+            onChanged: (value) => setState(() => _searchQuery = value),
+          ),
+        ),
+        const SizedBox(height: 8),
         Expanded(
-          child: activePredefinedFoods.isEmpty
-              ? const Center(
-                  child: Text('Keine vordefinierten Portionen vorhanden.'),
+          child: filteredList.isEmpty
+              ? Center(
+                  child: Text(
+                    _searchQuery.isEmpty
+                        ? 'Keine vordefinierten Portionen vorhanden.'
+                        : 'Keine Treffer für "$_searchQuery"',
+                  ),
                 )
               : ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  itemCount: activePredefinedFoods.length,
+                  itemCount: filteredList.length,
                   itemBuilder: (context, index) {
-                    final predefinedFood = activePredefinedFoods[index];
+                    final predefinedFood = filteredList[index];
                     final foodData = activeFoodData[predefinedFood.foodDataId];
                     final macros = ref
                         .read(macroServiceProvider)
@@ -88,19 +132,14 @@ class PredefinedFoodList extends ConsumerWidget {
                           Text(
                             'Menge: ${predefinedFood.quantity.toStringAsFixed(1)}${foodData?.defaultUnit ?? 'N/A'} | Nährwerte:',
                           ),
-                          // macros berechnen using calculateMacrosForPredefinedFood
                           Text(
                             '${macros.calories.toStringAsFixed(0)} Cal | ${macros.protein.toStringAsFixed(1)}g Protein | ${macros.carbs.toStringAsFixed(1)}g Carbs | ${macros.fat.toStringAsFixed(1)}g Fat',
                           ),
                         ],
                       ),
-                      // Text(
-                      //   'Menge: ${predefinedFood.quantity.toStringAsFixed(1)} ${foodData?.defaultUnit ?? 'N/A'}',
-                      // ),
                       onTap: () {
                         _showPredefinedFoodDialog(
                           context,
-                          ref,
                           existingPredefinedFood: predefinedFood,
                         );
                       },
@@ -116,28 +155,25 @@ class PredefinedFoodList extends ConsumerWidget {
       ],
     );
   }
-}
 
-void _showPredefinedFoodDialog(
-  BuildContext context,
-  WidgetRef ref, {
-  PredefinedFood? existingPredefinedFood,
-}) {
-  final foodDataList = ref.read(foodDataMapProvider);
-  if (foodDataList.isEmpty) {
-    // Benutzerfreundliche Meldung, falls keine FoodData existiert
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Bitte zuerst FoodData-Einträge anlegen, um vordefinierte Portionen zu erstellen.',
+  void _showPredefinedFoodDialog(
+    BuildContext context, {
+    PredefinedFood? existingPredefinedFood,
+  }) {
+    final foodDataList = ref.read(foodDataMapProvider);
+    if (foodDataList.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Bitte zuerst FoodData-Einträge anlegen, um vordefinierte Portionen zu erstellen.',
+          ),
         ),
-      ),
+      );
+      return;
+    }
+    showPredefinedFoodDialog(
+      context: context,
+      existingPredefinedFood: existingPredefinedFood,
     );
-    return;
   }
-  showDialog(
-    context: context,
-    builder: (context) =>
-        PredefinedFoodDialog(existingPredefinedFood: existingPredefinedFood),
-  );
 }

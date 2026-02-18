@@ -1,6 +1,4 @@
 import 'package:eat_beat_repeat/frontend/pages/home/home_page.dart';
-import 'package:eat_beat_repeat/frontend/pages/meal_plans/meal_plan_detail_page.dart';
-import 'package:eat_beat_repeat/frontend/pages/meal_plans/meal_plans_page.dart';
 import 'package:eat_beat_repeat/frontend/pages/nutrition_plans/nutrition_plan_detail_page.dart';
 import 'package:eat_beat_repeat/frontend/pages/nutrition_plans/nutrition_plans_page.dart';
 import 'package:eat_beat_repeat/frontend/pages/profile/profile_page.dart';
@@ -13,8 +11,6 @@ import 'package:flutter/material.dart';
 enum Routes {
   root,
   recipes,
-  mealPlans,
-  mealPlanDetail,
   nutritionPlans,
   nutritionPlanDetail,
   home,
