@@ -1,6 +1,5 @@
 import 'package:eat_beat_repeat/frontend/pages/foods_and_recipes/tabs/recipes/recipe_dialog.dart';
 import 'package:eat_beat_repeat/frontend/pages/shared/custom_card.dart';
-import 'package:eat_beat_repeat/logic/models/recipe.dart';
 import 'package:eat_beat_repeat/logic/provider/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

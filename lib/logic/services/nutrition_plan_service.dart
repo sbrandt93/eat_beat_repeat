@@ -1,8 +1,10 @@
+import 'package:eat_beat_repeat/logic/models/day_override.dart';
 import 'package:eat_beat_repeat/logic/models/food_data.dart';
 import 'package:eat_beat_repeat/logic/models/macro_nutrients.dart';
 import 'package:eat_beat_repeat/logic/models/meal_entry.dart';
 import 'package:eat_beat_repeat/logic/models/nutrition_plan.dart';
 import 'package:eat_beat_repeat/logic/models/recipe.dart';
+import 'package:eat_beat_repeat/logic/models/recurring_meal_template.dart';
 import 'package:eat_beat_repeat/logic/services/macro_service.dart';
 
 /// Service für NutritionPlan-bezogene Berechnungen und Abfragen.
@@ -207,5 +209,161 @@ class NutritionPlanService {
       'fat': percentage(actual.fat, target.fat),
       'sugar': percentage(actual.sugar, target.sugar),
     };
+  }
+
+  // -----------------------------------------------------------------------
+  // PLAN MUTATIONS (Pure functions returning new plan)
+  // -----------------------------------------------------------------------
+
+  /// Fügt ein RecurringMealTemplate zum Plan hinzu.
+  ///
+  /// Gibt einen neuen Plan mit dem hinzugefügten Template zurück.
+  NutritionPlan addRecurringMeal(
+    NutritionPlan plan,
+    RecurringMealTemplate template,
+  ) {
+    return plan.copyWith(
+      recurringMeals: [...plan.recurringMeals, template],
+    );
+  }
+
+  /// Entfernt ein RecurringMealTemplate aus dem Plan.
+  ///
+  /// Sucht anhand der mealEntry.id und gibt den aktualisierten Plan zurück.
+  /// Gibt null zurück, wenn das Meal nicht gefunden wurde.
+  NutritionPlan? removeRecurringMeal(
+    NutritionPlan plan,
+    String mealEntryId,
+  ) {
+    final templateIndex = plan.recurringMeals.indexWhere(
+      (t) => t.mealEntry.id == mealEntryId,
+    );
+
+    if (templateIndex == -1) {
+      return null;
+    }
+
+    final updatedMeals = List<RecurringMealTemplate>.from(plan.recurringMeals)
+      ..removeAt(templateIndex);
+
+    return plan.copyWith(recurringMeals: updatedMeals);
+  }
+
+  /// Fügt ein zusätzliches Meal für einen bestimmten Tag hinzu.
+  ///
+  /// Erstellt oder aktualisiert das DayOverride für diesen Tag.
+  NutritionPlan addAdditionalMealToDay(
+    NutritionPlan plan,
+    DateTime date,
+    MealEntry meal,
+  ) {
+    final key = dateKey(date);
+    final existingOverride = plan.dayOverrides[key];
+
+    final newOverride = DayOverride(
+      dateKey: key,
+      hiddenRecurringMealTemplateIds:
+          existingOverride?.hiddenRecurringMealTemplateIds ?? [],
+      additionalMeals: [...?existingOverride?.additionalMeals, meal],
+    );
+
+    return plan.copyWith(
+      dayOverrides: {...plan.dayOverrides, key: newOverride},
+    );
+  }
+
+  /// Entfernt ein zusätzliches Meal von einem bestimmten Tag.
+  ///
+  /// Gibt null zurück, wenn das Meal nicht in additionalMeals gefunden wurde.
+  NutritionPlan? removeAdditionalMealFromDay(
+    NutritionPlan plan,
+    DateTime date,
+    String mealId,
+  ) {
+    final key = dateKey(date);
+    final existingOverride = plan.dayOverrides[key];
+
+    if (existingOverride == null) {
+      return null;
+    }
+
+    final updatedMeals = existingOverride.additionalMeals
+        .where((m) => m.id != mealId)
+        .toList();
+
+    // Wenn keine Änderung, war das Meal nicht in additionalMeals
+    if (updatedMeals.length == existingOverride.additionalMeals.length) {
+      return null;
+    }
+
+    final newOverride = existingOverride.copyWith(
+      additionalMeals: updatedMeals,
+    );
+
+    return plan.copyWith(
+      dayOverrides: {...plan.dayOverrides, key: newOverride},
+    );
+  }
+
+  /// Blendet ein wiederkehrendes Meal für einen bestimmten Tag aus.
+  ///
+  /// Fügt die Template-ID zu hiddenRecurringMealTemplateIds hinzu.
+  NutritionPlan hideMealForDay(
+    NutritionPlan plan,
+    DateTime date,
+    String mealEntryId,
+  ) {
+    // Finde das Template mit dieser mealEntry.id
+    final template = plan.recurringMeals.firstWhere(
+      (t) => t.mealEntry.id == mealEntryId,
+      orElse: () => plan.recurringMeals.first,
+    );
+
+    final key = dateKey(date);
+    final existingOverride = plan.dayOverrides[key];
+
+    final hiddenIds = [
+      ...?existingOverride?.hiddenRecurringMealTemplateIds,
+      template.id,
+    ];
+
+    final newOverride = DayOverride(
+      dateKey: key,
+      hiddenRecurringMealTemplateIds: hiddenIds,
+      additionalMeals: existingOverride?.additionalMeals ?? [],
+    );
+
+    return plan.copyWith(
+      dayOverrides: {...plan.dayOverrides, key: newOverride},
+    );
+  }
+
+  /// Entfernt ein Meal aus dem Plan (recurring oder additional).
+  ///
+  /// Versucht zuerst, es als recurring meal zu entfernen.
+  /// Falls nicht gefunden, versucht es als additional meal für den Tag.
+  /// Gibt den aktualisierten Plan oder null zurück.
+  ({NutritionPlan plan, bool wasRecurring})? removeMealFromPlan(
+    NutritionPlan plan,
+    DateTime date,
+    String mealId,
+  ) {
+    // 1. Versuche als recurring meal zu entfernen
+    final planWithoutRecurring = removeRecurringMeal(plan, mealId);
+    if (planWithoutRecurring != null) {
+      return (plan: planWithoutRecurring, wasRecurring: true);
+    }
+
+    // 2. Versuche als additional meal zu entfernen
+    final planWithoutAdditional = removeAdditionalMealFromDay(
+      plan,
+      date,
+      mealId,
+    );
+    if (planWithoutAdditional != null) {
+      return (plan: planWithoutAdditional, wasRecurring: false);
+    }
+
+    return null;
   }
 }
