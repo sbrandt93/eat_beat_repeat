@@ -25,7 +25,7 @@ class MyApp extends ConsumerWidget {
     // loading providers to initialize data
     final recipesMap = ref.watch(recipeProvider);
     final predefinedFoodsMap = ref.watch(predefinedFoodProvider);
-    final mealPlansMap = ref.watch(mealPlanProvider);
+    // final mealPlansMap = ref.watch(mealPlanProvider);
     final foodDataMap = ref.watch(foodDataMapProvider);
     final macroService = ref.watch(macroServiceProvider);
     return MaterialApp(

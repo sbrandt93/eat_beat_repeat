@@ -36,3 +36,21 @@ String timeDifference(DateTime from, DateTime to) {
 }
 
 const autoDeleteDuration = Duration(days: 30);
+
+// format DateTime to DD.MM.YYYY for Keys
+String getFormattedDateKey(DateTime date) {
+  String twoDigits(int n) => n.toString().padLeft(2, '0');
+  final day = twoDigits(date.day);
+  final month = twoDigits(date.month);
+  final year = date.year.toString();
+  return '$day-$month-$year';
+}
+
+// parse DD.MM.YYYY to DateTime
+DateTime parseFormattedDateKey(String dateKey) {
+  final parts = dateKey.split('-');
+  final day = int.parse(parts[0]);
+  final month = int.parse(parts[1]);
+  final year = int.parse(parts[2]);
+  return DateTime(year, month, day);
+}

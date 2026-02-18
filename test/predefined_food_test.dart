@@ -95,7 +95,7 @@ void main() {
       expect(
         str,
         contains(
-          'PredefinedFood(id: ${predefinedFood.id}, foodDataId: ${predefinedFood.foodDataId}, quantity: ${predefinedFood.quantity})',
+          'PredefinedFood(id: ${predefinedFood.id}, foodDataId: ${predefinedFood.foodDataId}, quantity: ${predefinedFood.quantity}, deletedAt: ${predefinedFood.deletedAt})',
         ),
       );
     });

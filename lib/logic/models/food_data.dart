@@ -19,7 +19,7 @@ class FoodData implements ISoftDeletable<FoodData> {
     required this.brandName,
     required this.macrosPer100unit,
     required this.defaultUnit,
-    this.deletedAt,
+    required this.deletedAt,
   });
 
   factory FoodData({

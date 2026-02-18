@@ -1,5 +1,5 @@
 import 'package:eat_beat_repeat/frontend/pages/home/home_page.dart';
-import 'package:eat_beat_repeat/frontend/pages/meal_plans/meal_plans_page.dart';
+import 'package:eat_beat_repeat/frontend/pages/nutrition_plans/nutrition_plans_page.dart';
 import 'package:eat_beat_repeat/frontend/pages/foods_and_recipes/foods_and_recipes_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -26,7 +26,7 @@ class _MainPageState extends ConsumerState<MainPage> {
     super.initState();
     _pages = [
       const FooodsAndRecipesPage(),
-      const MealPlansPage(),
+      const NutritionPlansPage(), // Ersetzt alte MealPlansPage
       const HomePage(),
       const WorkoutsPage(),
       const ProfilePage(),
