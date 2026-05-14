@@ -25,7 +25,7 @@ class MealsList extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.only(left: 16, right: 16, bottom: 80),
       itemCount: meals.length,
       itemBuilder: (context, index) {
         final meal = meals[index];
@@ -89,7 +89,7 @@ class MealCard extends ConsumerWidget {
               ),
             ),
             Text(
-              'P: ${macros.protein.toStringAsFixed(0)}g',
+              'P ${macros.protein.toStringAsFixed(0)}  K ${macros.carbs.toStringAsFixed(0)}  F ${macros.fat.toStringAsFixed(0)}g',
               style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
             ),
           ],

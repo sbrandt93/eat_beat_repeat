@@ -1,3 +1,4 @@
+import 'package:eat_beat_repeat/frontend/pages/shared/macro_sort_bar.dart';
 import 'package:eat_beat_repeat/logic/models/food_data.dart';
 import 'package:eat_beat_repeat/logic/models/recipe.dart';
 import 'package:eat_beat_repeat/logic/models/recipe_ingredient.dart';
@@ -357,6 +358,7 @@ class _RecipeDialogState extends ConsumerState<RecipeDialog> {
     String? selectedFoodDataId;
     double quantity = 0.0;
     String searchQuery = '';
+    final List<MacroSortCriteria> sortCriteria = [];
     final formKey = GlobalKey<FormState>();
     final quantityController = TextEditingController();
 
@@ -372,6 +374,36 @@ class _RecipeDialogState extends ConsumerState<RecipeDialog> {
               return fd.name.toLowerCase().contains(query) ||
                   fd.brandName.toLowerCase().contains(query);
             }).toList();
+
+            // Multi-column sort on macrosPer100unit
+            final sortedFoodData = List.of(filteredFoodData);
+            if (sortCriteria.isNotEmpty) {
+              sortedFoodData.sort((a, b) {
+                for (final c in sortCriteria) {
+                  final double aVal;
+                  final double bVal;
+                  switch (c.field) {
+                    case MacroSortField.calories:
+                      aVal = a.macrosPer100unit.calories;
+                      bVal = b.macrosPer100unit.calories;
+                    case MacroSortField.protein:
+                      aVal = a.macrosPer100unit.protein;
+                      bVal = b.macrosPer100unit.protein;
+                    case MacroSortField.carbs:
+                      aVal = a.macrosPer100unit.carbs;
+                      bVal = b.macrosPer100unit.carbs;
+                    case MacroSortField.fat:
+                      aVal = a.macrosPer100unit.fat;
+                      bVal = b.macrosPer100unit.fat;
+                  }
+                  final cmp = c.descending
+                      ? bVal.compareTo(aVal)
+                      : aVal.compareTo(bVal);
+                  if (cmp != 0) return cmp;
+                }
+                return 0;
+              });
+            }
 
             final selectedFoodData = selectedFoodDataId != null
                 ? foodDataMap[selectedFoodDataId]
@@ -417,16 +449,17 @@ class _RecipeDialogState extends ConsumerState<RecipeDialog> {
 
                     // Search field
                     Padding(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                       child: TextField(
                         autofocus: true,
                         decoration: InputDecoration(
-                          labelText: 'Lebensmittel suchen',
+                          hintText: 'Lebensmittel suchen...',
                           prefixIcon: const Icon(LucideIcons.search),
-                          border: const OutlineInputBorder(),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                           contentPadding: const EdgeInsets.symmetric(
                             horizontal: 12,
-                            vertical: 8,
                           ),
                           suffixIcon: searchQuery.isNotEmpty
                               ? IconButton(
@@ -442,10 +475,35 @@ class _RecipeDialogState extends ConsumerState<RecipeDialog> {
                         },
                       ),
                     ),
+                    const SizedBox(height: 6),
+                    MacroSortBar(
+                      sortCriteria: sortCriteria,
+                      onToggle: (field) {
+                        setDialogState(() {
+                          final idx = sortCriteria.indexWhere(
+                            (c) => c.field == field,
+                          );
+                          if (idx == -1) {
+                            sortCriteria.add(
+                              MacroSortCriteria(field, descending: true),
+                            );
+                          } else if (sortCriteria[idx].descending) {
+                            sortCriteria[idx] = MacroSortCriteria(
+                              field,
+                              descending: false,
+                            );
+                          } else {
+                            sortCriteria.removeAt(idx);
+                          }
+                        });
+                      },
+                      onReset: () => setDialogState(() => sortCriteria.clear()),
+                    ),
+                    const SizedBox(height: 4),
 
                     // Food data list
                     Flexible(
-                      child: filteredFoodData.isEmpty
+                      child: sortedFoodData.isEmpty
                           ? Padding(
                               padding: const EdgeInsets.all(32),
                               child: Center(
@@ -459,10 +517,11 @@ class _RecipeDialogState extends ConsumerState<RecipeDialog> {
                             )
                           : ListView.builder(
                               shrinkWrap: true,
-                              itemCount: filteredFoodData.length,
+                              itemCount: sortedFoodData.length,
                               itemBuilder: (context, index) {
-                                final fd = filteredFoodData[index];
+                                final fd = sortedFoodData[index];
                                 final isSelected = selectedFoodDataId == fd.id;
+                                final m = fd.macrosPer100unit;
 
                                 return ListTile(
                                   dense: true,
@@ -491,16 +550,18 @@ class _RecipeDialogState extends ConsumerState<RecipeDialog> {
                                           : FontWeight.normal,
                                     ),
                                   ),
-                                  subtitle: fd.brandName.isNotEmpty
-                                      ? Text(fd.brandName)
-                                      : null,
-                                  trailing: Text(
-                                    '${fd.macrosPer100unit.calories.toStringAsFixed(0)} kcal',
+                                  subtitle: Text(
+                                    '${m.calories.toStringAsFixed(0)} kcal'
+                                    '  |  ${m.protein.toStringAsFixed(1)}g P'
+                                    '  |  ${m.carbs.toStringAsFixed(1)}g K'
+                                    '  |  ${m.fat.toStringAsFixed(1)}g F'
+                                    '${fd.brandName.isNotEmpty ? '\n${fd.brandName}' : ''}',
                                     style: TextStyle(
-                                      fontSize: 12,
+                                      fontSize: 11,
                                       color: Colors.grey.shade600,
                                     ),
                                   ),
+                                  isThreeLine: fd.brandName.isNotEmpty,
                                   onTap: () {
                                     setDialogState(
                                       () => selectedFoodDataId = fd.id,

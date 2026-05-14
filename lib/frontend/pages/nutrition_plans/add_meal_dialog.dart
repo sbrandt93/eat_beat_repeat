@@ -1,3 +1,4 @@
+import 'package:eat_beat_repeat/frontend/pages/shared/macro_sort_bar.dart';
 import 'package:eat_beat_repeat/logic/models/day_override.dart';
 import 'package:eat_beat_repeat/logic/models/food_data.dart';
 import 'package:eat_beat_repeat/logic/models/macro_nutrients.dart';
@@ -62,6 +63,42 @@ class _AddMealDialogState extends ConsumerState<AddMealDialog> {
 
   // Search
   String _searchQuery = '';
+  final List<MacroSortCriteria> _portionSortCriteria = [];
+  final List<MacroSortCriteria> _recipeSortCriteria = [];
+
+  void _togglePortionSort(MacroSortField field) {
+    setState(() {
+      final idx = _portionSortCriteria.indexWhere((c) => c.field == field);
+      if (idx == -1) {
+        _portionSortCriteria.add(MacroSortCriteria(field, descending: true));
+      } else if (_portionSortCriteria[idx].descending) {
+        _portionSortCriteria[idx] = MacroSortCriteria(field, descending: false);
+      } else {
+        _portionSortCriteria.removeAt(idx);
+      }
+    });
+  }
+
+  void _toggleRecipeSort(MacroSortField field) {
+    setState(() {
+      final idx = _recipeSortCriteria.indexWhere((c) => c.field == field);
+      if (idx == -1) {
+        _recipeSortCriteria.add(MacroSortCriteria(field, descending: true));
+      } else if (_recipeSortCriteria[idx].descending) {
+        _recipeSortCriteria[idx] = MacroSortCriteria(field, descending: false);
+      } else {
+        _recipeSortCriteria.removeAt(idx);
+      }
+    });
+  }
+
+  static double _macroValue(MacroNutrients m, MacroSortField field) =>
+      switch (field) {
+        MacroSortField.calories => m.calories,
+        MacroSortField.protein => m.protein,
+        MacroSortField.carbs => m.carbs,
+        MacroSortField.fat => m.fat,
+      };
 
   // Create portion form
   final _formKey = GlobalKey<FormState>();
@@ -75,31 +112,33 @@ class _AddMealDialogState extends ConsumerState<AddMealDialog> {
   double _portionQuantity = 100;
 
   // Create recipe form
-  final _recipeFormKey = GlobalKey<FormState>();
   String _recipeName = '';
   List<RecipeIngredient> _recipeIngredients = [];
 
   @override
   Widget build(BuildContext context) {
+    final viewInsets = MediaQuery.of(context).viewInsets;
     final screenHeight = MediaQuery.of(context).size.height;
+    final availableHeight = (screenHeight * 0.9 - viewInsets.bottom).clamp(
+      300.0,
+      screenHeight * 0.9,
+    );
 
     return Dialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       child: Container(
         width: 500,
-        height: screenHeight * 0.9,
+        height: availableHeight,
         constraints: BoxConstraints(
           maxWidth: 500,
-          maxHeight: screenHeight * 0.9,
+          maxHeight: availableHeight,
         ),
         child: Column(
           children: [
             _buildHeader(),
             const Divider(height: 1),
             Expanded(
-              child: SingleChildScrollView(
-                child: _buildContent(),
-              ),
+              child: _buildContent(),
             ),
             _buildFooter(),
           ],
@@ -227,9 +266,9 @@ class _AddMealDialogState extends ConsumerState<AddMealDialog> {
       case _DialogStep.selectRecipe:
         return _buildRecipeSelection();
       case _DialogStep.createPortion:
-        return _buildCreatePortionForm();
+        return SingleChildScrollView(child: _buildCreatePortionForm());
       case _DialogStep.createRecipe:
-        return _buildCreateRecipeForm();
+        return SingleChildScrollView(child: _buildCreateRecipeForm());
     }
   }
 
@@ -257,7 +296,7 @@ class _AddMealDialogState extends ConsumerState<AddMealDialog> {
   // ============================================================================
 
   Widget _buildTypeSelection() {
-    return Padding(
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
@@ -294,6 +333,7 @@ class _AddMealDialogState extends ConsumerState<AddMealDialog> {
   Widget _buildPortionSelection() {
     final predefinedFoods = ref.watch(activePredefinedFoodsProvider);
     final foodDataMap = ref.watch(activeFoodDataProvider);
+    final macroService = ref.watch(macroServiceProvider);
 
     // Filter by search
     final filteredFoods = predefinedFoods.where((food) {
@@ -304,13 +344,35 @@ class _AddMealDialogState extends ConsumerState<AddMealDialog> {
       return name.contains(query) || brand.contains(query);
     }).toList();
 
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Search field
-          TextField(
+    // Pre-calculate macros for sorting
+    final macrosCache = {
+      for (final f in filteredFoods)
+        f.id: macroService.calculateMacrosForPredefinedFood(f),
+    };
+
+    // Multi-column sort
+    final sortedFoods = List.of(filteredFoods);
+    if (_portionSortCriteria.isNotEmpty) {
+      sortedFoods.sort((a, b) {
+        for (final c in _portionSortCriteria) {
+          final aVal = _macroValue(macrosCache[a.id]!, c.field);
+          final bVal = _macroValue(macrosCache[b.id]!, c.field);
+          final cmp = c.descending
+              ? bVal.compareTo(aVal)
+              : aVal.compareTo(bVal);
+          if (cmp != 0) return cmp;
+        }
+        return 0;
+      });
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          child: TextField(
+            autofocus: false,
             decoration: InputDecoration(
               hintText: 'Portion suchen...',
               prefixIcon: const Icon(LucideIcons.search),
@@ -318,16 +380,27 @@ class _AddMealDialogState extends ConsumerState<AddMealDialog> {
                 borderRadius: BorderRadius.circular(8),
               ),
               contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(LucideIcons.x),
+                      onPressed: () => setState(() => _searchQuery = ''),
+                    )
+                  : null,
             ),
             onChanged: (value) => setState(() => _searchQuery = value),
           ),
-          const SizedBox(height: 12),
-
-          // Create new button
-          OutlinedButton.icon(
+        ),
+        const SizedBox(height: 6),
+        MacroSortBar(
+          sortCriteria: _portionSortCriteria,
+          onToggle: _togglePortionSort,
+          onReset: () => setState(() => _portionSortCriteria.clear()),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
+          child: OutlinedButton.icon(
             onPressed: () => setState(() {
               _currentStep = _DialogStep.createPortion;
-              // Pre-fill name from search query
               _name = _searchQuery;
             }),
             icon: const Icon(LucideIcons.plus),
@@ -336,30 +409,36 @@ class _AddMealDialogState extends ConsumerState<AddMealDialog> {
               padding: const EdgeInsets.symmetric(vertical: 12),
             ),
           ),
-          const SizedBox(height: 12),
-
-          // List
-          if (filteredFoods.isEmpty)
-            _buildEmptyState()
-          else
-            ...filteredFoods.map((food) {
-              final foodData = foodDataMap[food.foodDataId];
-              final foodName = foodData?.name ?? 'Unbekannt';
-              final brandName = foodData?.brandName;
-              return _PortionListTile(
-                name: foodName,
-                brand: brandName,
-                quantity: food.quantity,
-                unit: foodData?.defaultUnit ?? 'g',
-                onTap: () => _addFoodEntry(
-                  foodName,
-                  food.foodDataId,
-                  food.quantity,
+        ),
+        Expanded(
+          child: sortedFoods.isEmpty
+              ? _buildEmptyState()
+              : ListView.builder(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 4,
+                  ),
+                  itemCount: sortedFoods.length,
+                  itemBuilder: (context, index) {
+                    final food = sortedFoods[index];
+                    final foodData = foodDataMap[food.foodDataId];
+                    final macros = macrosCache[food.id]!;
+                    return _PortionListTile(
+                      name: foodData?.name ?? 'Unbekannt',
+                      brand: foodData?.brandName,
+                      quantity: food.quantity,
+                      unit: foodData?.defaultUnit ?? 'g',
+                      macros: macros,
+                      onTap: () => _addFoodEntry(
+                        foodData?.name ?? 'Unbekannt',
+                        food.foodDataId,
+                        food.quantity,
+                      ),
+                    );
+                  },
                 ),
-              );
-            }),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -399,6 +478,7 @@ class _AddMealDialogState extends ConsumerState<AddMealDialog> {
 
   Widget _buildRecipeSelection() {
     final recipes = ref.watch(activeRecipesProvider);
+    final macroService = ref.watch(macroServiceProvider);
 
     // Filter by search
     final filteredRecipes = recipes.where((recipe) {
@@ -407,13 +487,35 @@ class _AddMealDialogState extends ConsumerState<AddMealDialog> {
       return name.contains(query);
     }).toList();
 
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Search field
-          TextField(
+    // Pre-calculate macros for sorting
+    final macrosCache = {
+      for (final r in filteredRecipes)
+        r.id: macroService.calculateMacrosForRecipe(r),
+    };
+
+    // Multi-column sort
+    final sortedRecipes = List.of(filteredRecipes);
+    if (_recipeSortCriteria.isNotEmpty) {
+      sortedRecipes.sort((a, b) {
+        for (final c in _recipeSortCriteria) {
+          final aVal = _macroValue(macrosCache[a.id]!, c.field);
+          final bVal = _macroValue(macrosCache[b.id]!, c.field);
+          final cmp = c.descending
+              ? bVal.compareTo(aVal)
+              : aVal.compareTo(bVal);
+          if (cmp != 0) return cmp;
+        }
+        return 0;
+      });
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          child: TextField(
+            autofocus: false,
             decoration: InputDecoration(
               hintText: 'Rezept suchen...',
               prefixIcon: const Icon(LucideIcons.search),
@@ -421,13 +523,25 @@ class _AddMealDialogState extends ConsumerState<AddMealDialog> {
                 borderRadius: BorderRadius.circular(8),
               ),
               contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(LucideIcons.x),
+                      onPressed: () => setState(() => _searchQuery = ''),
+                    )
+                  : null,
             ),
             onChanged: (value) => setState(() => _searchQuery = value),
           ),
-          const SizedBox(height: 12),
-
-          // Create new button (navigates to recipe detail screen)
-          OutlinedButton.icon(
+        ),
+        const SizedBox(height: 6),
+        MacroSortBar(
+          sortCriteria: _recipeSortCriteria,
+          onToggle: _toggleRecipeSort,
+          onReset: () => setState(() => _recipeSortCriteria.clear()),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
+          child: OutlinedButton.icon(
             onPressed: _createNewRecipe,
             icon: const Icon(LucideIcons.plus),
             label: const Text('Neues Rezept anlegen'),
@@ -435,20 +549,28 @@ class _AddMealDialogState extends ConsumerState<AddMealDialog> {
               padding: const EdgeInsets.symmetric(vertical: 12),
             ),
           ),
-          const SizedBox(height: 12),
-
-          // List
-          if (filteredRecipes.isEmpty)
-            _buildEmptyRecipeState()
-          else
-            ...filteredRecipes.map(
-              (recipe) => _RecipeListTile(
-                recipe: recipe,
-                onTap: () => _addRecipeEntry(recipe.name, recipe.id),
-              ),
-            ),
-        ],
-      ),
+        ),
+        Expanded(
+          child: sortedRecipes.isEmpty
+              ? _buildEmptyRecipeState()
+              : ListView.builder(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 4,
+                  ),
+                  itemCount: sortedRecipes.length,
+                  itemBuilder: (context, index) {
+                    final recipe = sortedRecipes[index];
+                    final macros = macrosCache[recipe.id]!;
+                    return _RecipeListTile(
+                      recipe: recipe,
+                      macros: macros,
+                      onTap: () => _addRecipeEntry(recipe.name, recipe.id),
+                    );
+                  },
+                ),
+        ),
+      ],
     );
   }
 
@@ -555,7 +677,7 @@ class _AddMealDialogState extends ConsumerState<AddMealDialog> {
                   vertical: 8,
                 ),
               ),
-              value: _unit,
+              initialValue: _unit,
               items: FoodUnit.displayValues.map((unit) {
                 return DropdownMenuItem(
                   value: unit,
@@ -757,182 +879,175 @@ class _AddMealDialogState extends ConsumerState<AddMealDialog> {
 
   Widget _buildCreateRecipeForm() {
     final foodDataMap = ref.watch(activeFoodDataProvider);
-    final macroService = ref.read(macroServiceProvider);
 
     // Calculate current recipe macros
     MacroNutrients recipeMacros = MacroNutrients.zero();
     for (final ingredient in _recipeIngredients) {
-      final foodData = foodDataMap[ingredient.foodDataId];
-      if (foodData != null) {
-        final ingredientMacros = ingredient.getMacros(foodDataMap);
-        recipeMacros = recipeMacros + ingredientMacros;
-      }
+      final ingMacros = ingredient.getMacros(foodDataMap);
+      recipeMacros = recipeMacros + ingMacros;
     }
 
     return Padding(
       padding: const EdgeInsets.all(16),
-      child: Form(
-        key: _recipeFormKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Info card
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Info card
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.blue.shade200),
+            ),
+            child: Row(
+              children: [
+                Icon(LucideIcons.info, color: Colors.blue.shade700, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Das Rezept wird gespeichert und zum Plan hinzugefügt.',
+                    style: TextStyle(
+                      color: Colors.blue.shade700,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Recipe name
+          TextFormField(
+            initialValue: _recipeName,
+            decoration: const InputDecoration(
+              labelText: 'Rezept Name',
+              border: OutlineInputBorder(),
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 8,
+              ),
+            ),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Bitte einen Namen eingeben';
+              }
+              return null;
+            },
+            onChanged: (value) => _recipeName = value,
+          ),
+
+          const SizedBox(height: 16),
+
+          // Macro summary
+          if (_recipeIngredients.isNotEmpty)
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.blue.shade50,
+                color: Colors.grey.shade100,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.blue.shade200),
               ),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(LucideIcons.info, color: Colors.blue.shade700, size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Das Rezept wird gespeichert und zum Plan hinzugefügt.',
-                      style: TextStyle(
-                        color: Colors.blue.shade700,
-                        fontSize: 12,
-                      ),
+                  const Text(
+                    'Gesamtnährwerte:',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${recipeMacros.calories.toStringAsFixed(0)} kcal | '
+                    '${recipeMacros.protein.toStringAsFixed(1)}g P | '
+                    '${recipeMacros.carbs.toStringAsFixed(1)}g K | '
+                    '${recipeMacros.fat.toStringAsFixed(1)}g F',
+                    style: TextStyle(
+                      color: Colors.grey.shade700,
+                      fontSize: 12,
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 16),
 
-            // Recipe name
-            TextFormField(
-              initialValue: _recipeName,
-              decoration: const InputDecoration(
-                labelText: 'Rezept Name',
-                border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
+          const SizedBox(height: 16),
+          const Divider(),
+
+          // Ingredients section
+          Row(
+            children: [
+              const Text(
+                'Zutaten',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              const Spacer(),
+              TextButton.icon(
+                onPressed: () => _showAddIngredientDialog(foodDataMap),
+                icon: const Icon(LucideIcons.plus, size: 16),
+                label: const Text('Hinzufügen'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          // Ingredients list
+          if (_recipeIngredients.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 24),
+              child: Center(
+                child: Text(
+                  'Noch keine Zutaten hinzugefügt',
+                  style: TextStyle(color: Colors.grey.shade500),
                 ),
               ),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Bitte einen Namen eingeben';
-                }
-                return null;
-              },
-              onChanged: (value) => _recipeName = value,
-            ),
-
-            const SizedBox(height: 16),
-
-            // Macro summary
-            if (_recipeIngredients.isNotEmpty)
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Gesamtnährwerte:',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                      ),
+            )
+          else
+            ...List.generate(_recipeIngredients.length, (index) {
+              final ing = _recipeIngredients[index];
+              final foodData = foodDataMap[ing.foodDataId];
+              return Card(
+                margin: const EdgeInsets.only(bottom: 8),
+                child: ListTile(
+                  dense: true,
+                  title: Text(foodData?.name ?? 'Unbekannt'),
+                  subtitle: Text(
+                    '${ing.quantity.toStringAsFixed(1)} ${foodData?.defaultUnit ?? 'g'}',
+                  ),
+                  trailing: IconButton(
+                    icon: Icon(
+                      LucideIcons.trash2,
+                      color: Colors.red.shade400,
+                      size: 18,
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${recipeMacros.calories.toStringAsFixed(0)} kcal | '
-                      '${recipeMacros.protein.toStringAsFixed(1)}g P | '
-                      '${recipeMacros.carbs.toStringAsFixed(1)}g K | '
-                      '${recipeMacros.fat.toStringAsFixed(1)}g F',
-                      style: TextStyle(
-                        color: Colors.grey.shade700,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-            const SizedBox(height: 16),
-            const Divider(),
-
-            // Ingredients section
-            Row(
-              children: [
-                const Text(
-                  'Zutaten',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-                const Spacer(),
-                TextButton.icon(
-                  onPressed: () => _showAddIngredientDialog(foodDataMap),
-                  icon: const Icon(LucideIcons.plus, size: 16),
-                  label: const Text('Hinzufügen'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-
-            // Ingredients list
-            if (_recipeIngredients.isEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 24),
-                child: Center(
-                  child: Text(
-                    'Noch keine Zutaten hinzugefügt',
-                    style: TextStyle(color: Colors.grey.shade500),
+                    onPressed: () {
+                      setState(() {
+                        _recipeIngredients = List.from(_recipeIngredients)
+                          ..removeAt(index);
+                      });
+                    },
                   ),
                 ),
-              )
-            else
-              ...List.generate(_recipeIngredients.length, (index) {
-                final ing = _recipeIngredients[index];
-                final foodData = foodDataMap[ing.foodDataId];
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  child: ListTile(
-                    dense: true,
-                    title: Text(foodData?.name ?? 'Unbekannt'),
-                    subtitle: Text(
-                      '${ing.quantity.toStringAsFixed(1)} ${foodData?.defaultUnit ?? 'g'}',
-                    ),
-                    trailing: IconButton(
-                      icon: Icon(
-                        LucideIcons.trash2,
-                        color: Colors.red.shade400,
-                        size: 18,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _recipeIngredients = List.from(_recipeIngredients)
-                            ..removeAt(index);
-                        });
-                      },
-                    ),
-                  ),
-                );
-              }),
+              );
+            }),
 
-            const SizedBox(height: 24),
+          const SizedBox(height: 24),
 
-            // Save button
-            ElevatedButton.icon(
-              onPressed: _recipeIngredients.isEmpty ? null : _saveAndAddRecipe,
-              icon: const Icon(LucideIcons.check),
-              label: const Text('Speichern & hinzufügen'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.teal,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                disabledBackgroundColor: Colors.grey.shade300,
-              ),
+          // Save button
+          ElevatedButton.icon(
+            onPressed: _recipeIngredients.isEmpty ? null : _saveAndAddRecipe,
+            icon: const Icon(LucideIcons.check),
+            label: const Text('Speichern & hinzufügen'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.teal,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              disabledBackgroundColor: Colors.grey.shade300,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -950,6 +1065,7 @@ class _AddMealDialogState extends ConsumerState<AddMealDialog> {
     String? selectedFoodDataId;
     double quantity = 0.0;
     String searchQuery = '';
+    final List<MacroSortCriteria> sortCriteria = [];
     final formKey = GlobalKey<FormState>();
     final quantityController = TextEditingController();
 
@@ -965,6 +1081,22 @@ class _AddMealDialogState extends ConsumerState<AddMealDialog> {
               return fd.name.toLowerCase().contains(query) ||
                   fd.brandName.toLowerCase().contains(query);
             }).toList();
+
+            // Multi-column sort on macrosPer100unit
+            final sortedFoodData = List.of(filteredFoodData);
+            if (sortCriteria.isNotEmpty) {
+              sortedFoodData.sort((a, b) {
+                for (final c in sortCriteria) {
+                  final aVal = _macroValue(a.macrosPer100unit, c.field);
+                  final bVal = _macroValue(b.macrosPer100unit, c.field);
+                  final cmp = c.descending
+                      ? bVal.compareTo(aVal)
+                      : aVal.compareTo(bVal);
+                  if (cmp != 0) return cmp;
+                }
+                return 0;
+              });
+            }
 
             final selectedFoodData = selectedFoodDataId != null
                 ? foodDataMap[selectedFoodDataId]
@@ -1010,16 +1142,17 @@ class _AddMealDialogState extends ConsumerState<AddMealDialog> {
 
                     // Search field
                     Padding(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                       child: TextField(
                         autofocus: true,
                         decoration: InputDecoration(
-                          labelText: 'Lebensmittel suchen',
+                          hintText: 'Lebensmittel suchen...',
                           prefixIcon: const Icon(LucideIcons.search),
-                          border: const OutlineInputBorder(),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                           contentPadding: const EdgeInsets.symmetric(
                             horizontal: 12,
-                            vertical: 8,
                           ),
                           suffixIcon: searchQuery.isNotEmpty
                               ? IconButton(
@@ -1035,10 +1168,37 @@ class _AddMealDialogState extends ConsumerState<AddMealDialog> {
                         },
                       ),
                     ),
+                    const SizedBox(height: 6),
+
+                    // Sort bar
+                    MacroSortBar(
+                      sortCriteria: sortCriteria,
+                      onToggle: (field) {
+                        setDialogState(() {
+                          final idx = sortCriteria.indexWhere(
+                            (c) => c.field == field,
+                          );
+                          if (idx == -1) {
+                            sortCriteria.add(
+                              MacroSortCriteria(field, descending: true),
+                            );
+                          } else if (sortCriteria[idx].descending) {
+                            sortCriteria[idx] = MacroSortCriteria(
+                              field,
+                              descending: false,
+                            );
+                          } else {
+                            sortCriteria.removeAt(idx);
+                          }
+                        });
+                      },
+                      onReset: () => setDialogState(() => sortCriteria.clear()),
+                    ),
+                    const SizedBox(height: 4),
 
                     // Food data list
                     Flexible(
-                      child: filteredFoodData.isEmpty
+                      child: sortedFoodData.isEmpty
                           ? Padding(
                               padding: const EdgeInsets.all(32),
                               child: Center(
@@ -1052,11 +1212,11 @@ class _AddMealDialogState extends ConsumerState<AddMealDialog> {
                             )
                           : ListView.builder(
                               shrinkWrap: true,
-                              itemCount: filteredFoodData.length,
+                              itemCount: sortedFoodData.length,
                               itemBuilder: (context, index) {
-                                final fd = filteredFoodData[index];
+                                final fd = sortedFoodData[index];
                                 final isSelected = selectedFoodDataId == fd.id;
-
+                                final m = fd.macrosPer100unit;
                                 return ListTile(
                                   dense: true,
                                   selected: isSelected,
@@ -1084,16 +1244,18 @@ class _AddMealDialogState extends ConsumerState<AddMealDialog> {
                                           : FontWeight.normal,
                                     ),
                                   ),
-                                  subtitle: fd.brandName.isNotEmpty
-                                      ? Text(fd.brandName)
-                                      : null,
-                                  trailing: Text(
-                                    '${fd.macrosPer100unit.calories.toStringAsFixed(0)} kcal',
+                                  subtitle: Text(
+                                    '${m.calories.toStringAsFixed(0)} kcal'
+                                    '  |  ${m.protein.toStringAsFixed(1)}g P'
+                                    '  |  ${m.carbs.toStringAsFixed(1)}g K'
+                                    '  |  ${m.fat.toStringAsFixed(1)}g F'
+                                    '${fd.brandName.isNotEmpty ? '\n${fd.brandName}' : ''}',
                                     style: TextStyle(
-                                      fontSize: 12,
+                                      fontSize: 11,
                                       color: Colors.grey.shade600,
                                     ),
                                   ),
+                                  isThreeLine: fd.brandName.isNotEmpty,
                                   onTap: () {
                                     setDialogState(
                                       () => selectedFoodDataId = fd.id,
@@ -1425,6 +1587,7 @@ class _PortionListTile extends StatelessWidget {
   final String? brand;
   final double quantity;
   final String unit;
+  final MacroNutrients macros;
   final VoidCallback onTap;
 
   const _PortionListTile({
@@ -1432,6 +1595,7 @@ class _PortionListTile extends StatelessWidget {
     this.brand,
     required this.quantity,
     required this.unit,
+    required this.macros,
     required this.onTap,
   });
 
@@ -1444,11 +1608,20 @@ class _PortionListTile extends StatelessWidget {
           backgroundColor: Colors.orange,
           child: Icon(LucideIcons.banana, color: Colors.white, size: 20),
         ),
-        title: Text(name),
-        subtitle: Text(
-          brand != null && brand!.isNotEmpty
-              ? '$brand • ${quantity.toStringAsFixed(0)} $unit'
-              : '${quantity.toStringAsFixed(0)} $unit',
+        title: Text(name, style: const TextStyle(fontWeight: FontWeight.w500)),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              brand != null && brand!.isNotEmpty
+                  ? '$brand • ${quantity.toStringAsFixed(0)} $unit'
+                  : '${quantity.toStringAsFixed(0)} $unit',
+            ),
+            Text(
+              '${macros.calories.toStringAsFixed(0)} kcal  |  ${macros.protein.toStringAsFixed(1)}g P  |  ${macros.carbs.toStringAsFixed(1)}g K  |  ${macros.fat.toStringAsFixed(1)}g F',
+              style: const TextStyle(fontSize: 11, color: Colors.black54),
+            ),
+          ],
         ),
         trailing: const Icon(LucideIcons.plus),
         onTap: onTap,
@@ -1459,10 +1632,12 @@ class _PortionListTile extends StatelessWidget {
 
 class _RecipeListTile extends StatelessWidget {
   final Recipe recipe;
+  final MacroNutrients macros;
   final VoidCallback onTap;
 
   const _RecipeListTile({
     required this.recipe,
+    required this.macros,
     required this.onTap,
   });
 
@@ -1475,8 +1650,20 @@ class _RecipeListTile extends StatelessWidget {
           backgroundColor: Colors.teal,
           child: Icon(LucideIcons.cookingPot, color: Colors.white, size: 20),
         ),
-        title: Text(recipe.name),
-        subtitle: Text('${recipe.ingredients.length} Zutaten'),
+        title: Text(
+          recipe.name,
+          style: const TextStyle(fontWeight: FontWeight.w500),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('${recipe.ingredients.length} Zutat(en)'),
+            Text(
+              '${macros.calories.toStringAsFixed(0)} kcal  |  ${macros.protein.toStringAsFixed(1)}g P  |  ${macros.carbs.toStringAsFixed(1)}g K  |  ${macros.fat.toStringAsFixed(1)}g F',
+              style: const TextStyle(fontSize: 11, color: Colors.black54),
+            ),
+          ],
+        ),
         trailing: const Icon(LucideIcons.plus),
         onTap: onTap,
       ),

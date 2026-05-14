@@ -1,3 +1,4 @@
+import 'package:eat_beat_repeat/frontend/pages/shared/macro_sort_bar.dart';
 import 'package:eat_beat_repeat/logic/models/food_data.dart';
 import 'package:eat_beat_repeat/logic/models/predefined_food.dart';
 import 'package:eat_beat_repeat/logic/provider/providers.dart';
@@ -33,7 +34,21 @@ class _PredefinedFoodDialogState extends ConsumerState<PredefinedFoodDialog> {
   String? _selectedFoodDataId;
   late double _quantity;
   String _searchQuery = '';
+  final List<MacroSortCriteria> _sortCriteria = [];
   final _quantityController = TextEditingController();
+
+  void _toggleSort(MacroSortField field) {
+    setState(() {
+      final idx = _sortCriteria.indexWhere((c) => c.field == field);
+      if (idx == -1) {
+        _sortCriteria.add(MacroSortCriteria(field, descending: true));
+      } else if (_sortCriteria[idx].descending) {
+        _sortCriteria[idx] = MacroSortCriteria(field, descending: false);
+      } else {
+        _sortCriteria.removeAt(idx);
+      }
+    });
+  }
 
   bool get _isEdit => widget.existingPredefinedFood != null;
 
@@ -67,6 +82,36 @@ class _PredefinedFoodDialogState extends ConsumerState<PredefinedFoodDialog> {
                 fd.brandName.toLowerCase().contains(query);
           }).toList();
 
+    // Multi-column sort
+    final sortedFoodData = List.of(filteredFoodData);
+    if (_sortCriteria.isNotEmpty) {
+      sortedFoodData.sort((a, b) {
+        for (final c in _sortCriteria) {
+          final double aVal;
+          final double bVal;
+          switch (c.field) {
+            case MacroSortField.calories:
+              aVal = a.macrosPer100unit.calories;
+              bVal = b.macrosPer100unit.calories;
+            case MacroSortField.protein:
+              aVal = a.macrosPer100unit.protein;
+              bVal = b.macrosPer100unit.protein;
+            case MacroSortField.carbs:
+              aVal = a.macrosPer100unit.carbs;
+              bVal = b.macrosPer100unit.carbs;
+            case MacroSortField.fat:
+              aVal = a.macrosPer100unit.fat;
+              bVal = b.macrosPer100unit.fat;
+          }
+          final cmp = c.descending
+              ? bVal.compareTo(aVal)
+              : aVal.compareTo(bVal);
+          if (cmp != 0) return cmp;
+        }
+        return 0;
+      });
+    }
+
     return Dialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       child: Container(
@@ -83,7 +128,7 @@ class _PredefinedFoodDialogState extends ConsumerState<PredefinedFoodDialog> {
             Expanded(
               child: _buildContent(
                 activeFoodData,
-                filteredFoodData,
+                sortedFoodData,
                 selectedFoodData,
               ),
             ),
@@ -120,7 +165,7 @@ class _PredefinedFoodDialogState extends ConsumerState<PredefinedFoodDialog> {
 
   Widget _buildContent(
     Map<String, FoodData> activeFoodData,
-    List<FoodData> filteredFoodData,
+    List<FoodData> sortedFoodData,
     FoodData? selectedFoodData,
   ) {
     return Column(
@@ -184,20 +229,28 @@ class _PredefinedFoodDialogState extends ConsumerState<PredefinedFoodDialog> {
               onChanged: (value) => setState(() => _searchQuery = value),
             ),
           ),
+          MacroSortBar(
+            sortCriteria: _sortCriteria,
+            onToggle: _toggleSort,
+            onReset: () => setState(() => _sortCriteria.clear()),
+          ),
+          const SizedBox(height: 4),
 
           // Food data list
           Expanded(
-            child: filteredFoodData.isEmpty
+            child: sortedFoodData.isEmpty
                 ? Center(
                     child: Text(
-                      'Keine Treffer für "$_searchQuery"',
+                      _searchQuery.isEmpty
+                          ? 'Keine Lebensmittel vorhanden'
+                          : 'Keine Treffer für "$_searchQuery"',
                       style: TextStyle(color: Colors.grey.shade600),
                     ),
                   )
                 : ListView.builder(
-                    itemCount: filteredFoodData.length,
+                    itemCount: sortedFoodData.length,
                     itemBuilder: (context, index) {
-                      final fd = filteredFoodData[index];
+                      final fd = sortedFoodData[index];
                       final isSelected = _selectedFoodDataId == fd.id;
 
                       return ListTile(
@@ -225,16 +278,18 @@ class _PredefinedFoodDialogState extends ConsumerState<PredefinedFoodDialog> {
                                 : FontWeight.normal,
                           ),
                         ),
-                        subtitle: fd.brandName.isNotEmpty
-                            ? Text(fd.brandName)
-                            : null,
-                        trailing: Text(
-                          '${fd.macrosPer100unit.calories.toStringAsFixed(0)} kcal',
+                        subtitle: Text(
+                          '${fd.macrosPer100unit.calories.toStringAsFixed(0)} kcal'
+                          '  |  ${fd.macrosPer100unit.protein.toStringAsFixed(1)}g P'
+                          '  |  ${fd.macrosPer100unit.carbs.toStringAsFixed(1)}g K'
+                          '  |  ${fd.macrosPer100unit.fat.toStringAsFixed(1)}g F'
+                          '${fd.brandName.isNotEmpty ? '\n${fd.brandName}' : ''}',
                           style: TextStyle(
-                            fontSize: 12,
+                            fontSize: 11,
                             color: Colors.grey.shade600,
                           ),
                         ),
+                        isThreeLine: fd.brandName.isNotEmpty,
                         onTap: () {
                           setState(() => _selectedFoodDataId = fd.id);
                         },

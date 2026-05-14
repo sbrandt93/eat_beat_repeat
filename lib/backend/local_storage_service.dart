@@ -1,10 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:flutter/foundation.dart'
-    show kIsWeb; // Wichtig für die Web-Prüfung
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:eat_beat_repeat/logic/interfaces/i_storage_service.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // Neu hinzufügen!
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LocalStorageService implements IStorageService {
   static Future<String?> _localPath() async {
