@@ -1,6 +1,8 @@
 // --- 2. PREDEFINED FOOD LISTE MIT DIALOG ---
 import 'package:eat_beat_repeat/frontend/pages/foods_and_recipes/tabs/predefined_food/predefined_food_dialog.dart';
 import 'package:eat_beat_repeat/frontend/pages/shared/custom_card.dart';
+import 'package:eat_beat_repeat/frontend/pages/shared/macro_sort_bar.dart';
+import 'package:eat_beat_repeat/logic/models/macro_nutrients.dart';
 import 'package:eat_beat_repeat/logic/models/predefined_food.dart';
 import 'package:eat_beat_repeat/logic/provider/providers.dart';
 import 'package:flutter/material.dart';
@@ -16,11 +18,36 @@ class PredefinedFoodList extends ConsumerStatefulWidget {
 
 class _PredefinedFoodListState extends ConsumerState<PredefinedFoodList> {
   String _searchQuery = '';
+  final List<MacroSortCriteria> _sortCriteria = [];
+
+  void _toggleSort(MacroSortField field) {
+    setState(() {
+      final idx = _sortCriteria.indexWhere((c) => c.field == field);
+      if (idx == -1) {
+        // New field: becomes primary (prepend)
+        _sortCriteria.add(MacroSortCriteria(field, descending: true));
+      } else if (_sortCriteria[idx].descending) {
+        _sortCriteria[idx] = MacroSortCriteria(field, descending: false);
+      } else {
+        _sortCriteria.removeAt(idx);
+      }
+    });
+  }
+
+  void _resetSort() => setState(() => _sortCriteria.clear());
+
+  double _macroValue(MacroNutrients m, MacroSortField field) => switch (field) {
+    MacroSortField.calories => m.calories,
+    MacroSortField.protein => m.protein,
+    MacroSortField.carbs => m.carbs,
+    MacroSortField.fat => m.fat,
+  };
 
   @override
   Widget build(BuildContext context) {
     final activePredefinedFoods = ref.watch(activePredefinedFoodsProvider);
     final activeFoodData = ref.watch(activeFoodDataProvider);
+    final macroService = ref.watch(macroServiceProvider);
 
     // Filter by search query
     final filteredList = _searchQuery.isEmpty
@@ -31,6 +58,28 @@ class _PredefinedFoodListState extends ConsumerState<PredefinedFoodList> {
             return (foodData?.name.toLowerCase().contains(query) ?? false) ||
                 (foodData?.brandName.toLowerCase().contains(query) ?? false);
           }).toList();
+
+    // Pre-calculate macros for sorting
+    final macrosCache = {
+      for (final pf in filteredList)
+        pf.id: macroService.calculateMacrosForPredefinedFood(pf),
+    };
+
+    // Multi-column sort
+    final sortedList = List<PredefinedFood>.from(filteredList);
+    if (_sortCriteria.isNotEmpty) {
+      sortedList.sort((a, b) {
+        for (final c in _sortCriteria) {
+          final aVal = _macroValue(macrosCache[a.id]!, c.field);
+          final bVal = _macroValue(macrosCache[b.id]!, c.field);
+          final cmp = c.descending
+              ? bVal.compareTo(aVal)
+              : aVal.compareTo(bVal);
+          if (cmp != 0) return cmp;
+        }
+        return 0;
+      });
+    }
 
     return Column(
       children: [
@@ -75,8 +124,14 @@ class _PredefinedFoodListState extends ConsumerState<PredefinedFoodList> {
           ),
         ),
         const SizedBox(height: 8),
+        MacroSortBar(
+          sortCriteria: _sortCriteria,
+          onToggle: _toggleSort,
+          onReset: _resetSort,
+        ),
+        const SizedBox(height: 4),
         Expanded(
-          child: filteredList.isEmpty
+          child: sortedList.isEmpty
               ? Center(
                   child: Text(
                     _searchQuery.isEmpty
@@ -85,14 +140,16 @@ class _PredefinedFoodListState extends ConsumerState<PredefinedFoodList> {
                   ),
                 )
               : ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  itemCount: filteredList.length,
+                  padding: EdgeInsets.only(
+                    left: 16,
+                    right: 16,
+                    bottom: MediaQuery.of(context).padding.bottom + 16,
+                  ),
+                  itemCount: sortedList.length,
                   itemBuilder: (context, index) {
-                    final predefinedFood = filteredList[index];
+                    final predefinedFood = sortedList[index];
                     final foodData = activeFoodData[predefinedFood.foodDataId];
-                    final macros = ref
-                        .read(macroServiceProvider)
-                        .calculateMacrosForPredefinedFood(predefinedFood);
+                    final macros = macrosCache[predefinedFood.id]!;
                     return CustomCard(
                       key: ValueKey(predefinedFood.id),
                       avatarColor: Colors.teal.shade100,
@@ -130,10 +187,14 @@ class _PredefinedFoodListState extends ConsumerState<PredefinedFoodList> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Menge: ${predefinedFood.quantity.toStringAsFixed(1)}${foodData?.defaultUnit ?? 'N/A'} | Nährwerte:',
+                            'Menge: ${predefinedFood.quantity.toStringAsFixed(1)} ${foodData?.defaultUnit ?? 'N/A'}',
                           ),
                           Text(
-                            '${macros.calories.toStringAsFixed(0)} Cal | ${macros.protein.toStringAsFixed(1)}g Protein | ${macros.carbs.toStringAsFixed(1)}g Carbs | ${macros.fat.toStringAsFixed(1)}g Fat',
+                            '${macros.calories.toStringAsFixed(0)} kcal  |  ${macros.protein.toStringAsFixed(1)}g P  |  ${macros.carbs.toStringAsFixed(1)}g K  |  ${macros.fat.toStringAsFixed(1)}g F',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.black54,
+                            ),
                           ),
                         ],
                       ),
