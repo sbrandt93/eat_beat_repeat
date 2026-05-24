@@ -43,7 +43,13 @@ class _NutritionPlanDetailContent extends ConsumerWidget {
 
     final meals = service.getMealsForDay(plan, selectedDate);
     final dayMacros = service.calculateMacrosForDay(plan, selectedDate);
+    final checkedMacros = service.calculateMacrosForCheckedMeals(
+      plan,
+      selectedDate,
+    );
     final targets = plan.dailyMacroTargets;
+    final dateKey = service.dateKey(selectedDate);
+    final burnedCalories = plan.dayOverrides[dateKey]?.burnedCalories ?? 0.0;
 
     return Scaffold(
       backgroundColor: Colors.teal.shade50,
@@ -66,8 +72,11 @@ class _NutritionPlanDetailContent extends ConsumerWidget {
 
           // Makro-Zusammenfassung
           MacroSummaryCard(
-            dayMacros: dayMacros,
             targets: targets,
+            plannedMacros: dayMacros,
+            checkedMacros: checkedMacros,
+            burnedCalories: burnedCalories,
+            selectedDate: selectedDate,
           ),
 
           // Mahlzeiten-Liste
@@ -114,11 +123,11 @@ class _NutritionPlanDetailContent extends ConsumerWidget {
     );
   }
 
-  void _showPlanSettings(BuildContext context, WidgetRef ref) {
-    // TODO: Implement plan settings
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Einstellungen - coming soon!')),
-    );
+  void _showPlanSettings(BuildContext context, WidgetRef ref) async {
+    final updatedPlan = await showEditPlanDialog(context, plan: plan);
+    if (updatedPlan != null) {
+      ref.read(nutritionPlanProvider.notifier).update(updatedPlan);
+    }
   }
 
   void _showAddMealOptions(

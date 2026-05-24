@@ -338,6 +338,62 @@ class NutritionPlanService {
     );
   }
 
+  // -----------------------------------------------------------------------
+  // MEAL CHECK-OFF (gegessen markieren)
+  // -----------------------------------------------------------------------
+
+  /// Berechnet Makros nur für abgehakte (gegessene) Mahlzeiten.
+  MacroNutrients calculateMacrosForCheckedMeals(
+    NutritionPlan plan,
+    DateTime date,
+  ) {
+    final key = dateKey(date);
+    final checkedIds = plan.dayOverrides[key]?.checkedMealIds ?? [];
+    if (checkedIds.isEmpty) return MacroNutrients.zero();
+
+    final meals = getMealsForDay(plan, date);
+    return meals
+        .where((m) => checkedIds.contains(m.id))
+        .fold(
+          MacroNutrients.zero(),
+          (sum, m) => sum + calculateMacrosForMealEntry(m),
+        );
+  }
+
+  /// Setzt oder entfernt einen Check für eine Mahlzeit an einem bestimmten Tag.
+  NutritionPlan toggleMealChecked(
+    NutritionPlan plan,
+    DateTime date,
+    String mealId,
+  ) {
+    final key = dateKey(date);
+    final existingOverride = plan.dayOverrides[key];
+    final checkedIds = List<String>.from(
+      existingOverride?.checkedMealIds ?? [],
+    );
+
+    if (checkedIds.contains(mealId)) {
+      checkedIds.remove(mealId);
+    } else {
+      checkedIds.add(mealId);
+    }
+
+    final newOverride = DayOverride(
+      dateKey: key,
+      hiddenRecurringMealTemplateIds:
+          existingOverride?.hiddenRecurringMealTemplateIds ?? [],
+      additionalMeals: existingOverride?.additionalMeals ?? [],
+      checkedMealIds: checkedIds,
+      burnedCalories: existingOverride?.burnedCalories ?? 0.0,
+    );
+
+    return plan.copyWith(
+      dayOverrides: {...plan.dayOverrides, key: newOverride},
+    );
+  }
+
+  // -----------------------------------------------------------------------
+
   /// Entfernt ein Meal aus dem Plan (recurring oder additional).
   ///
   /// Versucht zuerst, es als recurring meal zu entfernen.

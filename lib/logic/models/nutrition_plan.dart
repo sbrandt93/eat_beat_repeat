@@ -55,7 +55,7 @@ class NutritionPlan implements ISoftDeletable<NutritionPlan> {
   NutritionPlan copyWith({
     String? name,
     DateTime? startDate,
-    DateTime? endDate,
+    Wrapper<DateTime?>? endDate,
     List<RecurringMealTemplate>? recurringMeals,
     Map<String, DayOverride>? dayOverrides,
     MacroNutrients? dailyMacroTargets,
@@ -66,7 +66,7 @@ class NutritionPlan implements ISoftDeletable<NutritionPlan> {
       name: name ?? this.name,
       createdAt: createdAt,
       startDate: startDate ?? this.startDate,
-      endDate: endDate ?? this.endDate,
+      endDate: endDate != null ? endDate.value : this.endDate,
       recurringMeals: recurringMeals ?? this.recurringMeals,
       dayOverrides: dayOverrides ?? this.dayOverrides,
       dailyMacroTargets: dailyMacroTargets ?? this.dailyMacroTargets,

@@ -1,39 +1,80 @@
-import 'package:eat_beat_repeat/logic/models/macro_nutrients.dart';
+﻿import 'package:eat_beat_repeat/logic/models/macro_nutrients.dart';
 import 'package:eat_beat_repeat/logic/models/nutrition_plan.dart';
 import 'package:eat_beat_repeat/logic/utils/helpers.dart';
+import 'package:eat_beat_repeat/logic/utils/wrapper.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-/// Shows the Create Nutrition Plan Dialog and returns the created plan
-Future<NutritionPlan?> showCreatePlanDialog(BuildContext context) {
+/// Ã–ffnet den Plan-Formular-Dialog.
+///
+/// [existingPlan] null â†’ Anlegen-Modus; nicht-null â†’ Bearbeiten-Modus.
+Future<NutritionPlan?> showPlanFormDialog(
+  BuildContext context, {
+  NutritionPlan? existingPlan,
+}) {
   return showDialog<NutritionPlan>(
     context: context,
     barrierDismissible: false,
-    builder: (context) => const CreateNutritionPlanDialog(),
+    builder: (context) => NutritionPlanFormDialog(existingPlan: existingPlan),
   );
 }
 
-class CreateNutritionPlanDialog extends ConsumerStatefulWidget {
-  const CreateNutritionPlanDialog({super.key});
+/// Kurzform: Ã¶ffnet den Plan-Dialog im Anlegen-Modus.
+Future<NutritionPlan?> showCreatePlanDialog(BuildContext context) =>
+    showPlanFormDialog(context);
+
+/// Universeller Plan-Dialog fÃ¼r Anlegen und Bearbeiten.
+///
+/// Im Anlegen-Modus ([existingPlan] == null) sind alle Felder leer mit
+/// Standardwerten. Im Bearbeiten-Modus werden die Felder des bestehenden
+/// Plans vorbelegt und beim Speichern ein aktualisiertes Objekt mit
+/// unverÃ¤nderter ID zurÃ¼ckgegeben.
+class NutritionPlanFormDialog extends ConsumerStatefulWidget {
+  /// Bestehender Plan fÃ¼r den Bearbeiten-Modus; null fÃ¼r Anlegen-Modus.
+  final NutritionPlan? existingPlan;
+
+  const NutritionPlanFormDialog({super.key, this.existingPlan});
 
   @override
-  ConsumerState<CreateNutritionPlanDialog> createState() =>
-      _CreateNutritionPlanDialogState();
+  ConsumerState<NutritionPlanFormDialog> createState() =>
+      _NutritionPlanFormDialogState();
 }
 
-class _CreateNutritionPlanDialogState
-    extends ConsumerState<CreateNutritionPlanDialog> {
-  final _nameController = TextEditingController();
-  DateTime _startDate = DateTime.now();
-  DateTime? _endDate;
-  bool _hasEndDate = false;
+class _NutritionPlanFormDialogState
+    extends ConsumerState<NutritionPlanFormDialog> {
+  bool get _isEditMode => widget.existingPlan != null;
 
-  // Makro-Ziele
-  final _caloriesController = TextEditingController(text: '2000');
-  final _proteinController = TextEditingController(text: '150');
-  final _carbsController = TextEditingController(text: '200');
-  final _fatController = TextEditingController(text: '70');
+  late final TextEditingController _nameController;
+  late DateTime _startDate;
+  late DateTime? _endDate;
+  late bool _hasEndDate;
+  late final TextEditingController _caloriesController;
+  late final TextEditingController _proteinController;
+  late final TextEditingController _carbsController;
+  late final TextEditingController _fatController;
+
+  @override
+  void initState() {
+    super.initState();
+    final p = widget.existingPlan;
+    _nameController = TextEditingController(text: p?.name ?? '');
+    _startDate = p?.startDate ?? DateTime.now();
+    _endDate = p?.endDate;
+    _hasEndDate = p?.endDate != null;
+    _caloriesController = TextEditingController(
+      text: p?.dailyMacroTargets.calories.toStringAsFixed(0) ?? '2000',
+    );
+    _proteinController = TextEditingController(
+      text: p?.dailyMacroTargets.protein.toStringAsFixed(0) ?? '150',
+    );
+    _carbsController = TextEditingController(
+      text: p?.dailyMacroTargets.carbs.toStringAsFixed(0) ?? '200',
+    );
+    _fatController = TextEditingController(
+      text: p?.dailyMacroTargets.fat.toStringAsFixed(0) ?? '70',
+    );
+  }
 
   @override
   void dispose() {
@@ -63,9 +104,7 @@ class _CreateNutritionPlanDialogState
             _buildHeader(),
             const Divider(height: 1),
             Flexible(
-              child: SingleChildScrollView(
-                child: _buildContent(),
-              ),
+              child: SingleChildScrollView(child: _buildContent()),
             ),
             _buildFooter(),
           ],
@@ -79,10 +118,10 @@ class _CreateNutritionPlanDialogState
       padding: const EdgeInsets.all(16),
       child: Row(
         children: [
-          const Expanded(
+          Expanded(
             child: Text(
-              'Neuer Ernährungsplan',
-              style: TextStyle(
+              _isEditMode ? 'Plan bearbeiten' : 'Neuer ErnÃ¤hrungsplan',
+              style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
               ),
@@ -91,7 +130,7 @@ class _CreateNutritionPlanDialogState
           IconButton(
             icon: const Icon(LucideIcons.x),
             onPressed: () => Navigator.pop(context),
-            tooltip: 'Schließen',
+            tooltip: 'SchlieÃŸen',
           ),
         ],
       ),
@@ -104,7 +143,6 @@ class _CreateNutritionPlanDialogState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Name
           const Text(
             'Plan-Name',
             style: TextStyle(fontWeight: FontWeight.bold),
@@ -119,8 +157,6 @@ class _CreateNutritionPlanDialogState
             ),
           ),
           const SizedBox(height: 16),
-
-          // Startdatum
           const Text(
             'Zeitraum',
             style: TextStyle(fontWeight: FontWeight.bold),
@@ -129,11 +165,9 @@ class _CreateNutritionPlanDialogState
           _buildDatePicker(
             label: 'Startdatum',
             date: _startDate,
-            onTap: () => _selectDate(true),
+            onTap: () => _selectDate(isStart: true),
           ),
           const SizedBox(height: 12),
-
-          // Enddatum (optional)
           Row(
             children: [
               Checkbox(
@@ -147,25 +181,19 @@ class _CreateNutritionPlanDialogState
             _buildDatePicker(
               label: 'Enddatum',
               date: _endDate ?? _startDate.add(const Duration(days: 30)),
-              onTap: () => _selectDate(false),
+              onTap: () => _selectDate(isStart: false),
             ),
-
           const SizedBox(height: 16),
           const Divider(),
           const SizedBox(height: 12),
-
-          // Makro-Ziele
           const Text(
-            'Tägliche Makro-Ziele',
+            'TÃ¤gliche Makro-Ziele',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
           ),
           const SizedBox(height: 12),
-
           Row(
             children: [
-              Expanded(
-                child: _buildMacroInput('Kcal', _caloriesController),
-              ),
+              Expanded(child: _buildMacroInput('Kcal', _caloriesController)),
               const SizedBox(width: 12),
               Expanded(
                 child: _buildMacroInput('Protein (g)', _proteinController),
@@ -175,13 +203,9 @@ class _CreateNutritionPlanDialogState
           const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(
-                child: _buildMacroInput('Carbs (g)', _carbsController),
-              ),
+              Expanded(child: _buildMacroInput('Carbs (g)', _carbsController)),
               const SizedBox(width: 12),
-              Expanded(
-                child: _buildMacroInput('Fett (g)', _fatController),
-              ),
+              Expanded(child: _buildMacroInput('Fett (g)', _fatController)),
             ],
           ),
         ],
@@ -206,9 +230,9 @@ class _CreateNutritionPlanDialogState
           const SizedBox(width: 12),
           Expanded(
             child: ElevatedButton.icon(
-              onPressed: _createPlan,
+              onPressed: _submit,
               icon: const Icon(LucideIcons.check),
-              label: const Text('Erstellen'),
+              label: Text(_isEditMode ? 'Speichern' : 'Erstellen'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.teal,
                 foregroundColor: Colors.white,
@@ -251,7 +275,7 @@ class _CreateNutritionPlanDialogState
     );
   }
 
-  Future<void> _selectDate(bool isStart) async {
+  Future<void> _selectDate({required bool isStart}) async {
     final picked = await showDatePicker(
       context: context,
       initialDate: isStart ? _startDate : (_endDate ?? _startDate),
@@ -269,7 +293,7 @@ class _CreateNutritionPlanDialogState
     }
   }
 
-  void _createPlan() {
+  void _submit() {
     if (_nameController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Bitte gib einen Namen ein.')),
@@ -277,18 +301,27 @@ class _CreateNutritionPlanDialogState
       return;
     }
 
-    final plan = NutritionPlan(
-      name: _nameController.text,
-      startDate: _startDate,
-      endDate: _hasEndDate ? _endDate : null,
-      dailyMacroTargets: MacroNutrients(
-        calories: double.tryParse(_caloriesController.text) ?? 2000,
-        protein: double.tryParse(_proteinController.text) ?? 150,
-        carbs: double.tryParse(_carbsController.text) ?? 200,
-        fat: double.tryParse(_fatController.text) ?? 70,
-      ),
+    final macros = MacroNutrients(
+      calories: double.tryParse(_caloriesController.text) ?? 2000,
+      protein: double.tryParse(_proteinController.text) ?? 150,
+      carbs: double.tryParse(_carbsController.text) ?? 200,
+      fat: double.tryParse(_fatController.text) ?? 70,
     );
 
-    Navigator.pop(context, plan);
+    final result = _isEditMode
+        ? widget.existingPlan!.copyWith(
+            name: _nameController.text,
+            startDate: _startDate,
+            endDate: Wrapper(_hasEndDate ? _endDate : null),
+            dailyMacroTargets: macros,
+          )
+        : NutritionPlan(
+            name: _nameController.text,
+            startDate: _startDate,
+            endDate: _hasEndDate ? _endDate : null,
+            dailyMacroTargets: macros,
+          );
+
+    Navigator.pop(context, result);
   }
 }

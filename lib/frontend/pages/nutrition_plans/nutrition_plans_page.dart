@@ -87,7 +87,7 @@ class NutritionPlansPage extends ConsumerWidget {
     List<NutritionPlan> plans,
   ) {
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 100),
       itemCount: plans.length,
       itemBuilder: (context, index) {
         final plan = plans[index];
@@ -115,26 +115,37 @@ class NutritionPlanCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final service = ref.watch(nutritionPlanServiceProvider);
-
-    // Berechne Durchschnitts-Makros für die Anzeige
-    final today = DateTime.now();
-    final todayMacros = service.calculateMacrosForDay(plan, today);
+    final targets = plan.dailyMacroTargets;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      margin: const EdgeInsets.only(bottom: 14),
+      elevation: 4,
+      shadowColor: Colors.black.withOpacity(0.15),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      color: Colors.white,
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         onTap: () => _navigateToDetail(context, plan.id),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header
-              Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // ── Teal-Akzent-Streifen ────────────────────────────────────
+            Container(
+              height: 5,
+              decoration: const BoxDecoration(
+                color: Colors.teal,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(16),
+                  topRight: Radius.circular(16),
+                ),
+              ),
+            ),
+
+            // ── Header: Name + Datum + Menu ──────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 8, 0),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
                     child: Column(
@@ -143,17 +154,28 @@ class NutritionPlanCard extends ConsumerWidget {
                         Text(
                           plan.name,
                           style: const TextStyle(
-                            fontSize: 18,
+                            fontSize: 17,
                             fontWeight: FontWeight.bold,
+                            color: Color(0xFF1A2332),
                           ),
                         ),
                         const SizedBox(height: 4),
-                        Text(
-                          _formatDateRange(plan),
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey.shade600,
-                          ),
+                        Row(
+                          children: [
+                            Icon(
+                              LucideIcons.calendar,
+                              size: 13,
+                              color: Colors.grey.shade400,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              _formatDateRange(plan),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade500,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -193,101 +215,135 @@ class NutritionPlanCard extends ConsumerWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+            ),
 
-              // Makro-Übersicht (heute)
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.teal.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Heute (${formatDateTime(today)})',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.grey.shade700,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        _buildMacroChip(
-                          'Kcal',
-                          todayMacros.calories.toStringAsFixed(0),
-                          Colors.orange,
-                        ),
-                        _buildMacroChip(
-                          'Protein',
-                          '${todayMacros.protein.toStringAsFixed(1)}g',
-                          Colors.red,
-                        ),
-                        _buildMacroChip(
-                          'Carbs',
-                          '${todayMacros.carbs.toStringAsFixed(1)}g',
-                          Colors.blue,
-                        ),
-                        _buildMacroChip(
-                          'Fett',
-                          '${todayMacros.fat.toStringAsFixed(1)}g',
-                          Colors.amber,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-
-              // Info-Zeile
-              const SizedBox(height: 12),
-              Row(
+            // ── Abschnitt-Label "Tägliche Ziele" ────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+              child: Row(
                 children: [
-                  Icon(
-                    LucideIcons.repeat,
-                    size: 14,
-                    color: Colors.grey.shade500,
-                  ),
-                  const SizedBox(width: 4),
                   Text(
-                    '${plan.recurringMeals.length} wiederkehrende Mahlzeiten',
+                    'TÄGLICHE ZIELE',
                     style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade500,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.teal.shade600,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Divider(
+                      height: 1,
+                      color: Colors.teal.withOpacity(0.2),
                     ),
                   ),
                 ],
               ),
-            ],
-          ),
+            ),
+
+            // ── Makro-Chips ─────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 14),
+              child: Row(
+                children: [
+                  _buildMacroChip(
+                    'kcal',
+                    targets.calories.toStringAsFixed(0),
+                    Colors.orange,
+                  ),
+                  const SizedBox(width: 8),
+                  _buildMacroChip(
+                    'Protein',
+                    '${targets.protein.toStringAsFixed(0)}g',
+                    Colors.red.shade400,
+                  ),
+                  const SizedBox(width: 8),
+                  _buildMacroChip(
+                    'Carbs',
+                    '${targets.carbs.toStringAsFixed(0)}g',
+                    Colors.blue.shade400,
+                  ),
+                  const SizedBox(width: 8),
+                  _buildMacroChip(
+                    'Fat',
+                    '${targets.fat.toStringAsFixed(0)}g',
+                    Colors.amber.shade600,
+                  ),
+                ],
+              ),
+            ),
+
+            // ── Footer ─────────────────────────────────────────────
+            Container(
+              decoration: BoxDecoration(
+                border: Border(top: BorderSide(color: Colors.grey.shade100)),
+              ),
+              padding: const EdgeInsets.fromLTRB(16, 8, 12, 10),
+              child: Row(
+                children: [
+                  Icon(
+                    LucideIcons.repeat,
+                    size: 13,
+                    color: Colors.teal.withOpacity(0.6),
+                  ),
+                  const SizedBox(width: 5),
+                  Text(
+                    '${plan.recurringMeals.length} Mahlzeit${plan.recurringMeals.length == 1 ? '' : 'en'} geplant',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                  ),
+                  const Spacer(),
+                  Text(
+                    'Details',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.teal,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(width: 2),
+                  Icon(LucideIcons.chevronRight, size: 14, color: Colors.teal),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
   Widget _buildMacroChip(String label, String value, Color color) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: color.withOpacity(0.2)),
         ),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            color: Colors.grey.shade600,
-          ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                color: color.withOpacity(0.75),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 

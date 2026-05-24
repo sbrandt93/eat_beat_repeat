@@ -5,10 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-/// Widget für die Datumsnavigation in der Plandetailansicht.
+/// Kompakte Datumsnavigation in der Plandetailansicht.
 ///
-/// Zeigt das aktuelle Datum mit Vor/Zurück-Navigation und Quick-Buttons
-/// für häufig verwendete Daten (Heute, Morgen).
+/// Zeigt Vor/Zurück-Pfeile, einen Heute-Chip und das aktuelle Datum
+/// (antippen öffnet den Datepicker).
 class DateNavigator extends ConsumerWidget {
   final DateTime selectedDate;
   final NutritionPlan plan;
@@ -21,74 +21,67 @@ class DateNavigator extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isToday = _isToday(selectedDate);
+
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Column(
+      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+      child: Row(
         children: [
-          // Navigation Row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              IconButton(
-                icon: const Icon(LucideIcons.chevronLeft),
-                onPressed: () => _changeDate(ref, -1),
-              ),
-              GestureDetector(
-                onTap: () => _selectDate(context, ref),
-                child: Column(
-                  children: [
-                    Text(
-                      _getWeekdayName(selectedDate),
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey,
-                      ),
-                    ),
-                    Text(
-                      formatDateTime(selectedDate),
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              IconButton(
-                icon: const Icon(LucideIcons.chevronRight),
-                onPressed: () => _changeDate(ref, 1),
-              ),
-            ],
+          // Zurück-Pfeil
+          IconButton(
+            icon: const Icon(LucideIcons.chevronLeft),
+            iconSize: 20,
+            onPressed: () => _changeDate(ref, -1),
           ),
 
-          // Quick-Navigation Buttons
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              children: [
-                QuickDateButton(
-                  label: 'Heute',
-                  isSelected: _isToday(selectedDate),
-                  onTap: () => ref.read(selectedDateProvider.notifier).state =
-                      DateTime.now(),
-                ),
-                const SizedBox(width: 8),
-                QuickDateButton(
-                  label: 'Morgen',
-                  isSelected: _isTomorrow(selectedDate),
-                  onTap: () => ref.read(selectedDateProvider.notifier).state =
-                      DateTime.now().add(const Duration(days: 1)),
-                ),
-                const SizedBox(width: 8),
-                QuickDateButton(
-                  label: 'Diese Woche',
-                  isSelected: false,
-                  onTap: () => _showWeekPicker(context, ref),
-                ),
-              ],
+          // Heute-Chip (nur sichtbar wenn nicht heute)
+          if (!isToday)
+            Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: ActionChip(
+                label: const Text('Heute', style: TextStyle(fontSize: 11)),
+                padding: EdgeInsets.zero,
+                visualDensity: VisualDensity.compact,
+                backgroundColor: Colors.teal.shade50,
+                labelStyle: const TextStyle(color: Colors.teal),
+                onPressed: () => ref.read(selectedDateProvider.notifier).state =
+                    DateTime.now(),
+              ),
             ),
+
+          // Datum (antippen = Datepicker)
+          Expanded(
+            child: GestureDetector(
+              onTap: () => _selectDate(context, ref),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    isToday ? 'Heute' : _getWeekdayName(selectedDate),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isToday ? Colors.teal : Colors.grey.shade500,
+                      fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
+                  Text(
+                    formatDateTime(selectedDate),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Vor-Pfeil
+          IconButton(
+            icon: const Icon(LucideIcons.chevronRight),
+            iconSize: 20,
+            onPressed: () => _changeDate(ref, 1),
           ),
         ],
       ),
@@ -102,18 +95,13 @@ class DateNavigator extends ConsumerWidget {
   }
 
   Future<void> _selectDate(BuildContext context, WidgetRef ref) async {
-    // Ensure initialDate is within valid range
     final firstDate = plan.startDate.isBefore(DateTime(2020))
         ? DateTime(2020)
         : plan.startDate;
     final lastDate = plan.endDate ?? DateTime(2030);
     DateTime initialDate = selectedDate;
-    if (initialDate.isBefore(firstDate)) {
-      initialDate = firstDate;
-    }
-    if (initialDate.isAfter(lastDate)) {
-      initialDate = lastDate;
-    }
+    if (initialDate.isBefore(firstDate)) initialDate = firstDate;
+    if (initialDate.isAfter(lastDate)) initialDate = lastDate;
 
     final picked = await showDatePicker(
       context: context,
@@ -126,10 +114,6 @@ class DateNavigator extends ConsumerWidget {
     }
   }
 
-  void _showWeekPicker(BuildContext context, WidgetRef ref) {
-    // TODO: Implement week view
-  }
-
   String _getWeekdayName(DateTime date) {
     const weekdays = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
     return weekdays[date.weekday - 1];
@@ -140,39 +124,5 @@ class DateNavigator extends ConsumerWidget {
     return date.year == now.year &&
         date.month == now.month &&
         date.day == now.day;
-  }
-
-  bool _isTomorrow(DateTime date) {
-    final tomorrow = DateTime.now().add(const Duration(days: 1));
-    return date.year == tomorrow.year &&
-        date.month == tomorrow.month &&
-        date.day == tomorrow.day;
-  }
-}
-
-/// Schnellauswahl-Button für häufig verwendete Daten.
-class QuickDateButton extends StatelessWidget {
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const QuickDateButton({
-    super.key,
-    required this.label,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ActionChip(
-      label: Text(label),
-      backgroundColor: isSelected ? Colors.teal : Colors.grey.shade200,
-      labelStyle: TextStyle(
-        color: isSelected ? Colors.white : Colors.black87,
-        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-      ),
-      onPressed: onTap,
-    );
   }
 }

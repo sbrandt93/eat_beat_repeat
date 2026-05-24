@@ -5,5 +5,6 @@ library;
 
 export 'create_plan_dialog.dart';
 export 'date_navigator.dart';
+export 'edit_plan_dialog.dart';
 export 'macro_summary_card.dart';
 export 'meals_list.dart';
