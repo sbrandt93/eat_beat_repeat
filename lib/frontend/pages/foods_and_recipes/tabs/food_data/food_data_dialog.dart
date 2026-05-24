@@ -1,3 +1,4 @@
+import 'package:eat_beat_repeat/frontend/pages/shared/nutrition_scan_button.dart';
 import 'package:eat_beat_repeat/logic/models/food_data.dart';
 import 'package:eat_beat_repeat/logic/models/macro_nutrients.dart';
 import 'package:eat_beat_repeat/logic/provider/providers.dart';
@@ -37,6 +38,11 @@ class _FoodDataDialogState extends ConsumerState<FoodDataDialog> {
   late double _carbs;
   late double _fat;
 
+  late TextEditingController _caloriesCtrl;
+  late TextEditingController _proteinCtrl;
+  late TextEditingController _carbsCtrl;
+  late TextEditingController _fatCtrl;
+
   bool get _isEdit => widget.existingFoodData != null;
 
   @override
@@ -50,6 +56,24 @@ class _FoodDataDialogState extends ConsumerState<FoodDataDialog> {
     _protein = existing?.macrosPer100unit.protein ?? 0;
     _carbs = existing?.macrosPer100unit.carbs ?? 0;
     _fat = existing?.macrosPer100unit.fat ?? 0;
+
+    _caloriesCtrl = TextEditingController(
+      text: _isEdit ? _calories.toString() : '',
+    );
+    _proteinCtrl = TextEditingController(
+      text: _isEdit ? _protein.toString() : '',
+    );
+    _carbsCtrl = TextEditingController(text: _isEdit ? _carbs.toString() : '');
+    _fatCtrl = TextEditingController(text: _isEdit ? _fat.toString() : '');
+  }
+
+  @override
+  void dispose() {
+    _caloriesCtrl.dispose();
+    _proteinCtrl.dispose();
+    _carbsCtrl.dispose();
+    _fatCtrl.dispose();
+    super.dispose();
   }
 
   @override
@@ -169,12 +193,32 @@ class _FoodDataDialogState extends ConsumerState<FoodDataDialog> {
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: NutritionScanButton(
+                onResult: (nutrients) {
+                  if (nutrients.calories != null) {
+                    _caloriesCtrl.text = nutrients.calories!.toStringAsFixed(1);
+                  }
+                  if (nutrients.protein != null) {
+                    _proteinCtrl.text = nutrients.protein!.toStringAsFixed(1);
+                  }
+                  if (nutrients.carbs != null) {
+                    _carbsCtrl.text = nutrients.carbs!.toStringAsFixed(1);
+                  }
+                  if (nutrients.fat != null) {
+                    _fatCtrl.text = nutrients.fat!.toStringAsFixed(1);
+                  }
+                },
+              ),
+            ),
+            const SizedBox(height: 8),
             Row(
               children: [
                 Expanded(
                   child: _buildNumberFormField(
                     label: 'Kalorien',
-                    initialValue: _isEdit ? _calories.toString() : '',
+                    controller: _caloriesCtrl,
                     onSave: (val) => _calories = val,
                   ),
                 ),
@@ -182,7 +226,7 @@ class _FoodDataDialogState extends ConsumerState<FoodDataDialog> {
                 Expanded(
                   child: _buildNumberFormField(
                     label: 'Protein (g)',
-                    initialValue: _isEdit ? _protein.toString() : '',
+                    controller: _proteinCtrl,
                     onSave: (val) => _protein = val,
                   ),
                 ),
@@ -194,7 +238,7 @@ class _FoodDataDialogState extends ConsumerState<FoodDataDialog> {
                 Expanded(
                   child: _buildNumberFormField(
                     label: 'Kohlenhydrate (g)',
-                    initialValue: _isEdit ? _carbs.toString() : '',
+                    controller: _carbsCtrl,
                     onSave: (val) => _carbs = val,
                   ),
                 ),
@@ -202,7 +246,7 @@ class _FoodDataDialogState extends ConsumerState<FoodDataDialog> {
                 Expanded(
                   child: _buildNumberFormField(
                     label: 'Fett (g)',
-                    initialValue: _isEdit ? _fat.toString() : '',
+                    controller: _fatCtrl,
                     onSave: (val) => _fat = val,
                   ),
                 ),
@@ -270,11 +314,17 @@ class _FoodDataDialogState extends ConsumerState<FoodDataDialog> {
 
   Widget _buildNumberFormField({
     required String label,
-    required String initialValue,
     required Function(double) onSave,
+    String? initialValue,
+    TextEditingController? controller,
   }) {
+    assert(
+      controller != null || initialValue != null,
+      'Either controller or initialValue must be provided',
+    );
     return TextFormField(
-      initialValue: initialValue,
+      controller: controller,
+      initialValue: controller != null ? null : initialValue,
       keyboardType: TextInputType.number,
       decoration: InputDecoration(
         labelText: label,

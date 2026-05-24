@@ -26,7 +26,7 @@ class _MainPageState extends ConsumerState<MainPage> {
     super.initState();
     _pages = [
       const FooodsAndRecipesPage(),
-      const NutritionPlansPage(), // Ersetzt alte MealPlansPage
+      const NutritionPlansPage(),
       const HomePage(),
       const WorkoutsPage(),
       const ProfilePage(),
@@ -101,7 +101,7 @@ class _MainPageState extends ConsumerState<MainPage> {
               icon: Icon(
                 Icons.fastfood_outlined,
               ),
-              label: 'Mahlzeiten',
+              label: 'Ernährungspläne',
             ),
             NavigationDestination(
               icon: Icon(
@@ -113,7 +113,7 @@ class _MainPageState extends ConsumerState<MainPage> {
               icon: Icon(
                 Icons.fitness_center,
               ),
-              label: 'Sport',
+              label: 'Training',
             ),
             NavigationDestination(
               icon: Icon(
