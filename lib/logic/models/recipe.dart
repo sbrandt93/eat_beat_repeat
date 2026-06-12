@@ -21,6 +21,7 @@ class Recipe implements ISoftDeletable<Recipe> {
   // da RecipeEntry später die 'servings' (Portionen) definiert.
   final double baseQuantity; // Standard 1.0 (Portion)
   final String baseUnit; // Standard 'Portion'
+  final String? imagePath;
 
   Recipe._({
     required this.id,
@@ -28,12 +29,14 @@ class Recipe implements ISoftDeletable<Recipe> {
     required this.ingredients,
     required this.baseQuantity,
     required this.baseUnit,
+    this.imagePath,
     this.deletedAt,
   });
 
   factory Recipe({
     required String name,
     required List<RecipeIngredient> ingredients,
+    String? imagePath,
   }) {
     return Recipe._(
       id: const Uuid().v4(),
@@ -41,6 +44,7 @@ class Recipe implements ISoftDeletable<Recipe> {
       ingredients: ingredients,
       baseQuantity: 1.0,
       baseUnit: 'Portion',
+      imagePath: imagePath,
       deletedAt: null,
     );
   }
@@ -50,6 +54,7 @@ class Recipe implements ISoftDeletable<Recipe> {
   Recipe copyWith({
     String? name,
     List<RecipeIngredient>? ingredients,
+    String? imagePath,
     Wrapper<DateTime?>? deletedAt,
   }) {
     return Recipe._(
@@ -58,6 +63,7 @@ class Recipe implements ISoftDeletable<Recipe> {
       ingredients: ingredients ?? this.ingredients,
       baseQuantity: baseQuantity,
       baseUnit: baseUnit,
+      imagePath: imagePath ?? this.imagePath,
       deletedAt: deletedAt != null ? deletedAt.value : this.deletedAt,
     );
   }
@@ -137,6 +143,7 @@ class Recipe implements ISoftDeletable<Recipe> {
       'ingredients': ingredients.map((e) => e.toJson()).toList(),
       'baseQuantity': baseQuantity,
       'baseUnit': baseUnit,
+      'imagePath': imagePath,
       'deletedAt': deletedAt?.toIso8601String(),
     };
   }
@@ -152,6 +159,7 @@ class Recipe implements ISoftDeletable<Recipe> {
           .toList(),
       baseQuantity: (json['baseQuantity'] as num?)?.toDouble() ?? 1.0,
       baseUnit: json['baseUnit'] as String? ?? 'Portion',
+      imagePath: json['imagePath'] as String?,
       deletedAt: json['deletedAt'] != null
           ? DateTime.parse(json['deletedAt'])
           : null,

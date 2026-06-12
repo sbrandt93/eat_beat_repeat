@@ -1,4 +1,5 @@
 import 'package:eat_beat_repeat/frontend/pages/nutrition_plans/widgets/create_plan_dialog.dart';
+import 'package:eat_beat_repeat/frontend/pages/nutrition_plans/widgets/edit_plan_dialog.dart';
 import 'package:eat_beat_repeat/logic/models/nutrition_plan.dart';
 import 'package:eat_beat_repeat/logic/provider/providers.dart';
 import 'package:eat_beat_repeat/logic/utils/helpers.dart';
@@ -362,8 +363,16 @@ class NutritionPlanCard extends ConsumerWidget {
   void _handleMenuAction(BuildContext context, WidgetRef ref, String action) {
     if (action == 'delete') {
       _confirmDelete(context, ref);
+    } else if (action == 'edit') {
+      _editPlan(context, ref);
     }
-    // TODO: edit action
+  }
+
+  Future<void> _editPlan(BuildContext context, WidgetRef ref) async {
+    final updatedPlan = await showEditPlanDialog(context, plan: plan);
+    if (updatedPlan != null) {
+      ref.read(nutritionPlanProvider.notifier).update(updatedPlan);
+    }
   }
 
   void _confirmDelete(BuildContext context, WidgetRef ref) {

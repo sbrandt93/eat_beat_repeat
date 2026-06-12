@@ -214,6 +214,7 @@ void main() {
           quantity: 120,
         ),
         rule: RecurrenceRule.weekdays(),
+        startDate: DateTime(2000),
       );
 
       expect(template.appliesToDate(DateTime(2026, 2, 9)), isTrue); // Mo
@@ -228,6 +229,7 @@ void main() {
           quantity: 120,
         ),
         rule: RecurrenceRule.daily(),
+        startDate: DateTime(2000),
       );
 
       final json = original.toJson();
@@ -246,6 +248,7 @@ void main() {
           servings: 1.5,
         ),
         rule: RecurrenceRule.weekends(),
+        startDate: DateTime(2000),
       );
 
       final json = original.toJson();
@@ -306,6 +309,7 @@ void main() {
               quantity: 120,
             ),
             rule: RecurrenceRule.daily(),
+            startDate: DateTime(2000),
           ),
         ],
         dayOverrides: {},
@@ -335,6 +339,7 @@ void main() {
               quantity: 120,
             ),
             rule: RecurrenceRule.daily(),
+            startDate: DateTime(2000),
           ),
           RecurringMealTemplate(
             mealEntry: RecipeEntry(
@@ -343,6 +348,7 @@ void main() {
               servings: 1,
             ),
             rule: RecurrenceRule.weekdays(),
+            startDate: DateTime(2000),
           ),
         ],
         dayOverrides: {
@@ -448,6 +454,7 @@ void main() {
           quantity: 120,
         ),
         rule: RecurrenceRule.daily(),
+        startDate: DateTime(2000),
       );
 
       final weekdayPorridge = RecurringMealTemplate(
@@ -457,6 +464,7 @@ void main() {
           servings: 1,
         ),
         rule: RecurrenceRule.weekdays(),
+        startDate: DateTime(2000),
       );
 
       final plan = NutritionPlan(
@@ -495,6 +503,7 @@ void main() {
           quantity: 120,
         ),
         rule: RecurrenceRule.daily(),
+        startDate: DateTime(2000),
       );
 
       final override = DayOverride(
@@ -539,3 +548,4 @@ void main() {
     });
   });
 }
+

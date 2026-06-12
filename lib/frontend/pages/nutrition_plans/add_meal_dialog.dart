@@ -1,6 +1,9 @@
+import 'dart:io';
+
+import 'package:eat_beat_repeat/frontend/pages/shared/food_image_avatar.dart';
+import 'package:flutter/foundation.dart';
 import 'package:eat_beat_repeat/frontend/pages/shared/macro_sort_bar.dart';
 import 'package:eat_beat_repeat/frontend/pages/shared/nutrition_scan_button.dart';
-import 'package:eat_beat_repeat/logic/models/day_override.dart';
 import 'package:eat_beat_repeat/logic/models/food_data.dart';
 import 'package:eat_beat_repeat/logic/models/macro_nutrients.dart';
 import 'package:eat_beat_repeat/logic/models/meal_entry.dart';
@@ -14,6 +17,7 @@ import 'package:eat_beat_repeat/logic/provider/providers.dart';
 import 'package:eat_beat_repeat/logic/utils/enums.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// Shows the Add Meal Dialog and returns true if a meal was added
@@ -116,6 +120,12 @@ class _AddMealDialogState extends ConsumerState<AddMealDialog> {
   late TextEditingController _proteinCtrl;
   late TextEditingController _carbsCtrl;
   late TextEditingController _fatCtrl;
+  late TextEditingController _nameCtrl;
+  late TextEditingController _brandCtrl;
+
+  // Image paths for create forms
+  String? _portionImagePath;
+  String? _recipeImagePath;
 
   // Create recipe form
   String _recipeName = '';
@@ -128,6 +138,8 @@ class _AddMealDialogState extends ConsumerState<AddMealDialog> {
     _proteinCtrl = TextEditingController();
     _carbsCtrl = TextEditingController();
     _fatCtrl = TextEditingController();
+    _nameCtrl = TextEditingController(text: _name);
+    _brandCtrl = TextEditingController(text: _brand);
   }
 
   @override
@@ -136,6 +148,8 @@ class _AddMealDialogState extends ConsumerState<AddMealDialog> {
     _proteinCtrl.dispose();
     _carbsCtrl.dispose();
     _fatCtrl.dispose();
+    _nameCtrl.dispose();
+    _brandCtrl.dispose();
     super.dispose();
   }
 
@@ -453,10 +467,12 @@ class _AddMealDialogState extends ConsumerState<AddMealDialog> {
                       quantity: food.quantity,
                       unit: foodData?.defaultUnit ?? 'g',
                       macros: macros,
-                      onTap: () => _addFoodEntry(
+                      imagePath: foodData?.imagePath,
+                      onAdd: () => _addFoodEntry(
                         foodData?.name ?? 'Unbekannt',
                         food.foodDataId,
                         food.quantity,
+                        stayInList: true,
                       ),
                     );
                   },
@@ -589,7 +605,11 @@ class _AddMealDialogState extends ConsumerState<AddMealDialog> {
                     return _RecipeListTile(
                       recipe: recipe,
                       macros: macros,
-                      onTap: () => _addRecipeEntry(recipe.name, recipe.id),
+                      onAdd: () => _promptServingsAndAddRecipe(
+                        recipe.name,
+                        recipe.id,
+                        stayInList: true,
+                      ),
                     );
                   },
                 ),
@@ -674,6 +694,60 @@ class _AddMealDialogState extends ConsumerState<AddMealDialog> {
             ),
             const SizedBox(height: 16),
 
+            // Image picker for portion
+            GestureDetector(
+              onTap: () async {
+                final picked = await ImagePicker().pickImage(
+                  source: ImageSource.gallery,
+                );
+                if (picked != null && mounted) {
+                  setState(() => _portionImagePath = picked.path);
+                }
+              },
+              child: Container(
+                height: 80,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey.shade300),
+                  image: _portionImagePath != null
+                      ? DecorationImage(
+                          image:
+                              (_portionImagePath!.startsWith('http://') ||
+                                  _portionImagePath!.startsWith('https://'))
+                              ? NetworkImage(_portionImagePath!)
+                                    as ImageProvider
+                              : kIsWeb
+                              ? NetworkImage(_portionImagePath!)
+                              : FileImage(File(_portionImagePath!)),
+                          fit: BoxFit.cover,
+                        )
+                      : null,
+                ),
+                child: _portionImagePath != null
+                    ? null
+                    : Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            LucideIcons.camera,
+                            color: Colors.grey.shade500,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Foto hinzufügen (optional)',
+                            style: TextStyle(
+                              color: Colors.grey.shade600,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+              ),
+            ),
+            const SizedBox(height: 8),
+
             // Basic info
             const Text(
               'Lebensmittel-Infos',
@@ -682,12 +756,12 @@ class _AddMealDialogState extends ConsumerState<AddMealDialog> {
             const SizedBox(height: 8),
             _buildTextFormField(
               label: 'Name des Lebensmittels',
-              initialValue: _name,
+              controller: _nameCtrl,
               onSave: (val) => _name = val,
             ),
             _buildTextFormField(
               label: 'Marke / Quelle (optional)',
-              initialValue: _brand,
+              controller: _brandCtrl,
               onSave: (val) => _brand = val,
               isRequired: false,
             ),
@@ -742,6 +816,16 @@ class _AddMealDialogState extends ConsumerState<AddMealDialog> {
                   }
                   if (nutrients.fat != null) {
                     _fatCtrl.text = nutrients.fat!.toStringAsFixed(1);
+                  }
+                  if (nutrients.name != null && nutrients.name!.isNotEmpty) {
+                    _nameCtrl.text = nutrients.name!;
+                  }
+                  if (nutrients.brand != null && nutrients.brand!.isNotEmpty) {
+                    _brandCtrl.text = nutrients.brand!;
+                  }
+                  if (nutrients.imageUrl != null &&
+                      nutrients.imageUrl!.isNotEmpty) {
+                    setState(() => _portionImagePath = nutrients.imageUrl);
                   }
                 },
               ),
@@ -828,13 +912,15 @@ class _AddMealDialogState extends ConsumerState<AddMealDialog> {
   Widget _buildTextFormField({
     required String label,
     required Function(String) onSave,
-    required String initialValue,
+    String? initialValue,
+    TextEditingController? controller,
     bool isRequired = true,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: TextFormField(
-        initialValue: initialValue,
+        controller: controller,
+        initialValue: controller != null ? null : initialValue,
         decoration: InputDecoration(
           labelText: label,
           border: const OutlineInputBorder(),
@@ -907,6 +993,7 @@ class _AddMealDialogState extends ConsumerState<AddMealDialog> {
       brandName: _brand,
       defaultUnit: _unit,
       macrosPer100unit: macros,
+      imagePath: _portionImagePath,
     );
 
     ref.read(foodDataMapProvider.notifier).upsert(newFoodData);
@@ -964,6 +1051,59 @@ class _AddMealDialogState extends ConsumerState<AddMealDialog> {
                   ),
                 ),
               ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Image picker for recipe
+          GestureDetector(
+            onTap: () async {
+              final picked = await ImagePicker().pickImage(
+                source: ImageSource.gallery,
+              );
+              if (picked != null && mounted) {
+                setState(() => _recipeImagePath = picked.path);
+              }
+            },
+            child: Container(
+              height: 80,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.shade300),
+                image: _recipeImagePath != null
+                    ? DecorationImage(
+                        image:
+                            (_recipeImagePath!.startsWith('http://') ||
+                                _recipeImagePath!.startsWith('https://'))
+                            ? NetworkImage(_recipeImagePath!) as ImageProvider
+                            : kIsWeb
+                            ? NetworkImage(_recipeImagePath!)
+                            : FileImage(File(_recipeImagePath!)),
+                        fit: BoxFit.cover,
+                      )
+                    : null,
+              ),
+              child: _recipeImagePath != null
+                  ? null
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          LucideIcons.camera,
+                          color: Colors.grey.shade500,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Foto hinzufügen (optional)',
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
             ),
           ),
           const SizedBox(height: 16),
@@ -1438,6 +1578,7 @@ class _AddMealDialogState extends ConsumerState<AddMealDialog> {
     final newRecipe = Recipe(
       name: _recipeName,
       ingredients: _recipeIngredients,
+      imagePath: _recipeImagePath,
     );
 
     ref.read(recipeProvider.notifier).upsert(newRecipe);
@@ -1450,65 +1591,175 @@ class _AddMealDialogState extends ConsumerState<AddMealDialog> {
   // Add Meal Entry Logic
   // ============================================================================
 
-  void _addFoodEntry(String name, String foodDataId, double quantity) {
+  void _addFoodEntry(
+    String name,
+    String foodDataId,
+    double quantity, {
+    bool stayInList = false,
+  }) {
     final entry = FoodEntry(
       name: name,
       foodDataId: foodDataId,
       quantity: quantity,
     );
-    _addMealEntry(entry);
+    _addMealEntry(entry, stayInList: stayInList);
   }
 
-  void _addRecipeEntry(String name, String recipeId) {
+  void _addRecipeEntry(
+    String name,
+    String recipeId, {
+    double servings = 1.0,
+    bool stayInList = false,
+  }) {
     final entry = RecipeEntry(
       name: name,
       recipeId: recipeId,
-      servings: 1,
+      servings: servings,
     );
-    _addMealEntry(entry);
+    _addMealEntry(entry, stayInList: stayInList);
   }
 
-  void _addMealEntry(MealEntry entry) {
-    final service = ref.read(nutritionPlanServiceProvider);
+  /// Shows a servings picker and then adds the recipe entry.
+  void _promptServingsAndAddRecipe(
+    String name,
+    String recipeId, {
+    bool stayInList = false,
+  }) {
+    double servings = 1.0;
+    final ctrl = TextEditingController(text: '1');
+    showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Portionsgröße'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Wie viele Portionen möchtest du von "$name" hinzufügen?',
+              style: const TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                StatefulBuilder(
+                  builder: (_, setS) => Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      IconButton(
+                        icon: const Icon(LucideIcons.minus),
+                        onPressed: servings > 0.5
+                            ? () => setS(() {
+                                servings = double.parse(
+                                  (servings - 0.5).toStringAsFixed(1),
+                                );
+                                ctrl.text = servings.toStringAsFixed(
+                                  servings % 1 == 0 ? 0 : 1,
+                                );
+                              })
+                            : null,
+                      ),
+                      SizedBox(
+                        width: 80,
+                        child: TextField(
+                          controller: ctrl,
+                          keyboardType: TextInputType.number,
+                          textAlign: TextAlign.center,
+                          decoration: const InputDecoration(
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 8,
+                            ),
+                          ),
+                          onChanged: (v) {
+                            final parsed = double.tryParse(v);
+                            if (parsed != null && parsed > 0) {
+                              servings = parsed;
+                            }
+                          },
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(LucideIcons.plus),
+                        onPressed: () => setS(() {
+                          servings = double.parse(
+                            (servings + 0.5).toStringAsFixed(1),
+                          );
+                          ctrl.text = servings.toStringAsFixed(
+                            servings % 1 == 0 ? 0 : 1,
+                          );
+                        }),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Abbrechen'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.teal,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Hinzufügen'),
+          ),
+        ],
+      ),
+    ).then((confirmed) {
+      if (confirmed == true) {
+        _addRecipeEntry(
+          name,
+          recipeId,
+          servings: servings,
+          stayInList: stayInList,
+        );
+      }
+    });
+  }
 
+  void _addMealEntry(MealEntry entry, {bool stayInList = false}) {
+    final service = ref.read(nutritionPlanServiceProvider);
+    // Always read the CURRENT plan state to avoid stale-data overwrites when
+    // adding multiple meals without leaving the list.
+    final currentPlan =
+        ref.read(nutritionPlanProvider)[widget.plan.id] ?? widget.plan;
+
+    NutritionPlan updatedPlan;
     if (_isRecurring) {
-      // Add as recurring meal
       final rule = _buildRecurrenceRule();
       final template = RecurringMealTemplate(
         mealEntry: entry,
         rule: rule,
+        startDate: widget.selectedDate,
       );
-
-      final updatedPlan = widget.plan.copyWith(
-        recurringMeals: [...widget.plan.recurringMeals, template],
-      );
-
-      ref.read(nutritionPlanProvider.notifier).update(updatedPlan);
+      updatedPlan = service.addRecurringMeal(currentPlan, template);
     } else {
-      // Add as day-specific meal
-      final dateKey = service.dateKey(widget.selectedDate);
-      final existingOverride = widget.plan.dayOverrides[dateKey];
-
-      final newOverride = DayOverride(
-        dateKey: dateKey,
-        hiddenRecurringMealTemplateIds:
-            existingOverride?.hiddenRecurringMealTemplateIds ?? [],
-        additionalMeals: [
-          ...?existingOverride?.additionalMeals,
-          entry,
-        ],
+      updatedPlan = service.addAdditionalMealToDay(
+        currentPlan,
+        widget.selectedDate,
+        entry,
       );
-
-      final updatedPlan = widget.plan.copyWith(
-        dayOverrides: {...widget.plan.dayOverrides, dateKey: newOverride},
-      );
-
-      ref.read(nutritionPlanProvider.notifier).update(updatedPlan);
     }
 
-    Navigator.of(context).pop(true);
+    ref.read(nutritionPlanProvider.notifier).update(updatedPlan);
+
+    if (!stayInList) {
+      Navigator.of(context).pop(true);
+    }
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${entry.name} hinzugefügt')),
+      SnackBar(
+        content: Text('${entry.name} hinzugefügt'),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+      ),
     );
   }
 
@@ -1638,7 +1889,8 @@ class _PortionListTile extends StatelessWidget {
   final double quantity;
   final String unit;
   final MacroNutrients macros;
-  final VoidCallback onTap;
+  final String? imagePath;
+  final VoidCallback onAdd;
 
   const _PortionListTile({
     required this.name,
@@ -1646,7 +1898,8 @@ class _PortionListTile extends StatelessWidget {
     required this.quantity,
     required this.unit,
     required this.macros,
-    required this.onTap,
+    this.imagePath,
+    required this.onAdd,
   });
 
   @override
@@ -1654,9 +1907,11 @@ class _PortionListTile extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
-        leading: const CircleAvatar(
+        leading: FoodImageAvatar(
+          imagePath: imagePath,
+          fallbackIcon: LucideIcons.banana,
+          iconColor: Colors.white,
           backgroundColor: Colors.orange,
-          child: Icon(LucideIcons.banana, color: Colors.white, size: 20),
         ),
         title: Text(name, style: const TextStyle(fontWeight: FontWeight.w500)),
         subtitle: Column(
@@ -1673,8 +1928,11 @@ class _PortionListTile extends StatelessWidget {
             ),
           ],
         ),
-        trailing: const Icon(LucideIcons.plus),
-        onTap: onTap,
+        trailing: IconButton(
+          icon: const Icon(LucideIcons.plus),
+          onPressed: onAdd,
+          tooltip: 'Hinzufügen',
+        ),
       ),
     );
   }
@@ -1683,12 +1941,12 @@ class _PortionListTile extends StatelessWidget {
 class _RecipeListTile extends StatelessWidget {
   final Recipe recipe;
   final MacroNutrients macros;
-  final VoidCallback onTap;
+  final VoidCallback onAdd;
 
   const _RecipeListTile({
     required this.recipe,
     required this.macros,
-    required this.onTap,
+    required this.onAdd,
   });
 
   @override
@@ -1696,9 +1954,11 @@ class _RecipeListTile extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
-        leading: const CircleAvatar(
+        leading: FoodImageAvatar(
+          imagePath: recipe.imagePath,
+          fallbackIcon: LucideIcons.cookingPot,
+          iconColor: Colors.white,
           backgroundColor: Colors.teal,
-          child: Icon(LucideIcons.cookingPot, color: Colors.white, size: 20),
         ),
         title: Text(
           recipe.name,
@@ -1714,8 +1974,11 @@ class _RecipeListTile extends StatelessWidget {
             ),
           ],
         ),
-        trailing: const Icon(LucideIcons.plus),
-        onTap: onTap,
+        trailing: IconButton(
+          icon: const Icon(LucideIcons.plus),
+          onPressed: onAdd,
+          tooltip: 'Hinzufügen',
+        ),
       ),
     );
   }

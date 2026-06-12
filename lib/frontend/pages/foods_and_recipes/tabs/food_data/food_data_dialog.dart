@@ -1,10 +1,15 @@
+import 'dart:io';
+
+import 'package:eat_beat_repeat/frontend/pages/shared/food_image_avatar.dart';
 import 'package:eat_beat_repeat/frontend/pages/shared/nutrition_scan_button.dart';
+import 'package:flutter/foundation.dart';
 import 'package:eat_beat_repeat/logic/models/food_data.dart';
 import 'package:eat_beat_repeat/logic/models/macro_nutrients.dart';
 import 'package:eat_beat_repeat/logic/provider/providers.dart';
 import 'package:eat_beat_repeat/logic/utils/enums.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// Shows the FoodData Dialog and returns the created/updated FoodData
@@ -42,6 +47,9 @@ class _FoodDataDialogState extends ConsumerState<FoodDataDialog> {
   late TextEditingController _proteinCtrl;
   late TextEditingController _carbsCtrl;
   late TextEditingController _fatCtrl;
+  late TextEditingController _nameCtrl;
+  late TextEditingController _brandCtrl;
+  String? _imagePath;
 
   bool get _isEdit => widget.existingFoodData != null;
 
@@ -65,6 +73,9 @@ class _FoodDataDialogState extends ConsumerState<FoodDataDialog> {
     );
     _carbsCtrl = TextEditingController(text: _isEdit ? _carbs.toString() : '');
     _fatCtrl = TextEditingController(text: _isEdit ? _fat.toString() : '');
+    _nameCtrl = TextEditingController(text: _name);
+    _brandCtrl = TextEditingController(text: _brand);
+    _imagePath = widget.existingFoodData?.imagePath;
   }
 
   @override
@@ -73,6 +84,8 @@ class _FoodDataDialogState extends ConsumerState<FoodDataDialog> {
     _proteinCtrl.dispose();
     _carbsCtrl.dispose();
     _fatCtrl.dispose();
+    _nameCtrl.dispose();
+    _brandCtrl.dispose();
     super.dispose();
   }
 
@@ -145,15 +158,59 @@ class _FoodDataDialogState extends ConsumerState<FoodDataDialog> {
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
+            // Image picker
+            GestureDetector(
+              onTap: _pickImage,
+              child: Container(
+                height: 100,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey.shade300),
+                  image: _imagePath != null
+                      ? DecorationImage(
+                          image:
+                              (_imagePath!.startsWith('http://') ||
+                                  _imagePath!.startsWith('https://'))
+                              ? NetworkImage(_imagePath!) as ImageProvider
+                              : kIsWeb
+                              ? NetworkImage(_imagePath!)
+                              : FileImage(File(_imagePath!)),
+                          fit: BoxFit.cover,
+                        )
+                      : null,
+                ),
+                child: _imagePath != null
+                    ? null
+                    : Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            LucideIcons.camera,
+                            color: Colors.grey.shade500,
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Foto hinzufügen',
+                            style: TextStyle(
+                              color: Colors.grey.shade600,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+              ),
+            ),
+            const SizedBox(height: 8),
             _buildTextFormField(
               label: 'Name des Lebensmittels',
-              initialValue: _name,
+              controller: _nameCtrl,
               onSave: (val) => _name = val,
             ),
             const SizedBox(height: 8),
             _buildTextFormField(
               label: 'Marke / Quelle (optional)',
-              initialValue: _brand,
+              controller: _brandCtrl,
               onSave: (val) => _brand = val,
               isRequired: false,
             ),
@@ -208,6 +265,16 @@ class _FoodDataDialogState extends ConsumerState<FoodDataDialog> {
                   }
                   if (nutrients.fat != null) {
                     _fatCtrl.text = nutrients.fat!.toStringAsFixed(1);
+                  }
+                  if (nutrients.name != null && nutrients.name!.isNotEmpty) {
+                    _nameCtrl.text = nutrients.name!;
+                  }
+                  if (nutrients.brand != null && nutrients.brand!.isNotEmpty) {
+                    _brandCtrl.text = nutrients.brand!;
+                  }
+                  if (nutrients.imageUrl != null &&
+                      nutrients.imageUrl!.isNotEmpty) {
+                    setState(() => _imagePath = nutrients.imageUrl);
                   }
                 },
               ),
@@ -292,11 +359,13 @@ class _FoodDataDialogState extends ConsumerState<FoodDataDialog> {
   Widget _buildTextFormField({
     required String label,
     required Function(String) onSave,
-    required String initialValue,
+    String? initialValue,
+    TextEditingController? controller,
     bool isRequired = true,
   }) {
     return TextFormField(
-      initialValue: initialValue,
+      controller: controller,
+      initialValue: controller != null ? null : initialValue,
       decoration: InputDecoration(
         labelText: label,
         border: const OutlineInputBorder(),
@@ -342,6 +411,14 @@ class _FoodDataDialogState extends ConsumerState<FoodDataDialog> {
     );
   }
 
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery);
+    if (picked != null && mounted) {
+      setState(() => _imagePath = picked.path);
+    }
+  }
+
   void _saveFoodData() {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -361,6 +438,7 @@ class _FoodDataDialogState extends ConsumerState<FoodDataDialog> {
         brandName: _brand,
         defaultUnit: _unit,
         macrosPer100unit: macros,
+        imagePath: _imagePath,
       );
       ref.read(foodDataMapProvider.notifier).upsert(updatedFood);
       Navigator.of(context).pop(updatedFood);
@@ -370,6 +448,7 @@ class _FoodDataDialogState extends ConsumerState<FoodDataDialog> {
         brandName: _brand,
         defaultUnit: _unit,
         macrosPer100unit: macros,
+        imagePath: _imagePath,
       );
       ref.read(foodDataMapProvider.notifier).upsert(newFood);
       Navigator.of(context).pop(newFood);

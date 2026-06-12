@@ -4,6 +4,26 @@ import 'package:eat_beat_repeat/logic/models/macro_nutrients.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+/// Anzeigemodus der Makro-Zusammenfassungs-Karte.
+enum MacroViewMode {
+  /// Plan-Modus: geplante Werte vs. Tagesziel.
+  plan,
+
+  /// Action-Modus: gegessene Werte vs. geplante Werte.
+  execute,
+}
+
+extension _MacroViewModeX on MacroViewMode {
+  MacroViewMode get next =>
+      this == MacroViewMode.plan ? MacroViewMode.execute : MacroViewMode.plan;
+
+  String get tooltip =>
+      this == MacroViewMode.plan ? 'Plan-Modus' : 'Action-Modus';
+
+  IconData get icon =>
+      this == MacroViewMode.plan ? LucideIcons.clipboard : LucideIcons.utensils;
+}
+
 /// Dreischichtige Zusammenfassungs-Card für Makronährwerte eines Tages.
 ///
 /// Zeigt Tagesziel (targets), geplante Mahlzeiten (plannedMacros) und
@@ -54,6 +74,9 @@ class _MacroSummaryCardState extends State<MacroSummaryCard>
   late final AnimationController _fwProtein;
   late final AnimationController _fwCarbs;
   late final AnimationController _fwFat;
+
+  /// Aktueller Anzeigemodus (Planen / Ausführen / Voll).
+  MacroViewMode _viewMode = MacroViewMode.execute;
 
   @override
   void initState() {
@@ -187,14 +210,39 @@ class _MacroSummaryCardState extends State<MacroSummaryCard>
                     plannedFrac: plannedFrac,
                     checkedFrac: checkedFrac,
                     displayCalories: dispCalories,
+                    plannedCalories: widget.plannedMacros.calories,
                     targetCalories: widget.targets.calories,
                     fireworkCtrl: _fwKcal,
+                    viewMode: _viewMode,
                   ),
                   const SizedBox(width: 14),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
+                        // Modus-Umschalter
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: Tooltip(
+                            message: _viewMode.tooltip,
+                            child: SizedBox(
+                              width: 28,
+                              height: 28,
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(8),
+                                onTap: () => setState(
+                                  () => _viewMode = _viewMode.next,
+                                ),
+                                child: Icon(
+                                  _viewMode.icon,
+                                  size: 16,
+                                  color: Colors.grey.shade500,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
                         _TriLayerMacroBar(
                           label: 'Protein',
                           target: widget.targets.protein,
@@ -202,6 +250,7 @@ class _MacroSummaryCardState extends State<MacroSummaryCard>
                           displayChecked: dispProtein,
                           color: Colors.red.shade400,
                           fireworkCtrl: _fwProtein,
+                          viewMode: _viewMode,
                         ),
                         const SizedBox(height: 9),
                         _TriLayerMacroBar(
@@ -211,6 +260,7 @@ class _MacroSummaryCardState extends State<MacroSummaryCard>
                           displayChecked: dispCarbs,
                           color: Colors.blue.shade400,
                           fireworkCtrl: _fwCarbs,
+                          viewMode: _viewMode,
                         ),
                         const SizedBox(height: 9),
                         _TriLayerMacroBar(
@@ -220,6 +270,7 @@ class _MacroSummaryCardState extends State<MacroSummaryCard>
                           displayChecked: dispFat,
                           color: Colors.amber.shade600,
                           fireworkCtrl: _fwFat,
+                          viewMode: _viewMode,
                         ),
                       ],
                     ),
@@ -266,15 +317,19 @@ class _VionProgressWidget extends StatelessWidget {
   final double plannedFrac;
   final double checkedFrac;
   final double displayCalories;
+  final double plannedCalories;
   final double targetCalories;
   final AnimationController fireworkCtrl;
+  final MacroViewMode viewMode;
 
   const _VionProgressWidget({
     required this.plannedFrac,
     required this.checkedFrac,
     required this.displayCalories,
+    required this.plannedCalories,
     required this.targetCalories,
     required this.fireworkCtrl,
+    required this.viewMode,
   });
 
   @override
@@ -318,18 +373,49 @@ class _VionProgressWidget extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  displayCalories.toStringAsFixed(0),
-                  style: const TextStyle(
+                  viewMode == MacroViewMode.plan
+                      ? plannedCalories.toStringAsFixed(0)
+                      : displayCalories.toStringAsFixed(0),
+                  style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF00897B),
+                    color: viewMode == MacroViewMode.plan
+                        ? const Color(0xFF00897B).withOpacity(0.45)
+                        : const Color(0xFF00897B),
                     letterSpacing: -0.5,
                   ),
                 ),
-                Text(
-                  '/ ${targetCalories.toStringAsFixed(0)} kcal',
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
-                ),
+                if (viewMode == MacroViewMode.plan)
+                  Text(
+                    '/ ${targetCalories.toStringAsFixed(0)} kcal',
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                  )
+                else if (viewMode == MacroViewMode.execute)
+                  Text(
+                    '/ ${plannedCalories.toStringAsFixed(0)} kcal',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: const Color(0xFF00897B).withOpacity(0.45),
+                    ),
+                  )
+                else
+                  RichText(
+                    text: TextSpan(
+                      style: const TextStyle(fontSize: 11),
+                      children: [
+                        TextSpan(
+                          text: '/ ${plannedCalories.toStringAsFixed(0)}',
+                          style: TextStyle(
+                            color: const Color(0xFF00897B).withOpacity(0.45),
+                          ),
+                        ),
+                        TextSpan(
+                          text: ' / ${targetCalories.toStringAsFixed(0)} kcal',
+                          style: TextStyle(color: Colors.grey.shade500),
+                        ),
+                      ],
+                    ),
+                  ),
               ],
             ),
             Positioned(
@@ -428,6 +514,7 @@ class _TriLayerMacroBar extends StatelessWidget {
   final double displayChecked; // animated value passed from parent
   final Color color;
   final AnimationController fireworkCtrl;
+  final MacroViewMode viewMode;
 
   const _TriLayerMacroBar({
     required this.label,
@@ -436,6 +523,7 @@ class _TriLayerMacroBar extends StatelessWidget {
     required this.displayChecked,
     required this.color,
     required this.fireworkCtrl,
+    required this.viewMode,
   });
 
   @override
@@ -459,12 +547,34 @@ class _TriLayerMacroBar extends StatelessWidget {
                   label,
                   style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
                 ),
-                Text(
-                  '${displayChecked.toStringAsFixed(0)}/${target.toStringAsFixed(0)}g',
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: color,
-                    fontWeight: FontWeight.w600,
+                RichText(
+                  text: TextSpan(
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    children: switch (viewMode) {
+                      MacroViewMode.plan => [
+                        TextSpan(
+                          text: '${planned.toStringAsFixed(0)}',
+                          style: TextStyle(color: Colors.grey.shade600),
+                        ),
+                        TextSpan(
+                          text: '/${target.toStringAsFixed(0)}g',
+                          style: TextStyle(color: Colors.grey.shade600),
+                        ),
+                      ],
+                      MacroViewMode.execute => [
+                        TextSpan(
+                          text: '${displayChecked.toStringAsFixed(0)}',
+                          style: TextStyle(color: Colors.grey.shade600),
+                        ),
+                        TextSpan(
+                          text: '/${planned.toStringAsFixed(0)}g',
+                          style: TextStyle(color: Colors.grey.shade600),
+                        ),
+                      ],
+                    },
                   ),
                 ),
               ],

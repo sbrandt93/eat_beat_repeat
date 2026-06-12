@@ -31,15 +31,56 @@ class NutritionPlanDetailPage extends ConsumerWidget {
   }
 }
 
-class _NutritionPlanDetailContent extends ConsumerWidget {
+class _NutritionPlanDetailContent extends ConsumerStatefulWidget {
   final NutritionPlan plan;
 
   const _NutritionPlanDetailContent({required this.plan});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_NutritionPlanDetailContent> createState() =>
+      _NutritionPlanDetailContentState();
+}
+
+class _NutritionPlanDetailContentState
+    extends ConsumerState<_NutritionPlanDetailContent> {
+  @override
+  void initState() {
+    super.initState();
+    // Clamp the selected date to the plan's date range on first load.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final selectedDate = ref.read(selectedDateProvider);
+      final clamped = _clampToRange(selectedDate, widget.plan);
+      if (clamped != selectedDate) {
+        ref.read(selectedDateProvider.notifier).state = clamped;
+      }
+    });
+  }
+
+  static DateTime _clampToRange(DateTime date, NutritionPlan plan) {
+    final planStart = DateTime(
+      plan.startDate.year,
+      plan.startDate.month,
+      plan.startDate.day,
+    );
+    final d = DateTime(date.year, date.month, date.day);
+    if (d.isBefore(planStart)) return planStart;
+    if (plan.endDate != null) {
+      final planEnd = DateTime(
+        plan.endDate!.year,
+        plan.endDate!.month,
+        plan.endDate!.day,
+      );
+      if (d.isAfter(planEnd)) return planEnd;
+    }
+    return date;
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final selectedDate = ref.watch(selectedDateProvider);
     final service = ref.watch(nutritionPlanServiceProvider);
+    final plan = widget.plan;
 
     final meals = service.getMealsForDay(plan, selectedDate);
     final dayMacros = service.calculateMacrosForDay(plan, selectedDate);
@@ -79,6 +120,11 @@ class _NutritionPlanDetailContent extends ConsumerWidget {
             selectedDate: selectedDate,
           ),
 
+          // Mahlzeiten-Header mit Hinzufügen-Button
+          _MealsHeader(
+            onAdd: () => _showAddMealOptions(context, ref, selectedDate),
+          ),
+
           // Mahlzeiten-Liste
           Expanded(
             child: meals.isEmpty
@@ -92,13 +138,18 @@ class _NutritionPlanDetailContent extends ConsumerWidget {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAddMealOptions(context, ref, selectedDate),
-        icon: const Icon(LucideIcons.plus),
-        label: const Text('Mahlzeit'),
-        backgroundColor: Colors.teal,
-        foregroundColor: Colors.white,
-      ),
+    );
+  }
+
+  void _showAddMealOptions(
+    BuildContext context,
+    WidgetRef ref,
+    DateTime selectedDate,
+  ) {
+    showAddMealDialog(
+      context: context,
+      plan: widget.plan,
+      selectedDate: selectedDate,
     );
   }
 
@@ -124,21 +175,43 @@ class _NutritionPlanDetailContent extends ConsumerWidget {
   }
 
   void _showPlanSettings(BuildContext context, WidgetRef ref) async {
-    final updatedPlan = await showEditPlanDialog(context, plan: plan);
+    final updatedPlan = await showEditPlanDialog(context, plan: widget.plan);
     if (updatedPlan != null) {
       ref.read(nutritionPlanProvider.notifier).update(updatedPlan);
     }
   }
+}
 
-  void _showAddMealOptions(
-    BuildContext context,
-    WidgetRef ref,
-    DateTime selectedDate,
-  ) {
-    showAddMealDialog(
-      context: context,
-      plan: plan,
-      selectedDate: selectedDate,
+/// Header-Zeile über der Mahlzeitenliste mit Titel und Hinzufügen-Button.
+class _MealsHeader extends StatelessWidget {
+  final VoidCallback onAdd;
+
+  const _MealsHeader({required this.onAdd});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 8, 0),
+      child: Row(
+        children: [
+          const Text(
+            'Mahlzeiten',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const Spacer(),
+          TextButton.icon(
+            onPressed: onAdd,
+            icon: const Icon(LucideIcons.plus, size: 16),
+            label: const Text('Hinzufügen'),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.teal,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

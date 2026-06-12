@@ -1,3 +1,5 @@
+import 'package:eat_beat_repeat/frontend/pages/nutrition_plans/widgets/meal_detail_dialog.dart';
+import 'package:eat_beat_repeat/frontend/pages/shared/food_image_avatar.dart';
 import 'package:eat_beat_repeat/logic/models/macro_nutrients.dart';
 import 'package:eat_beat_repeat/logic/models/meal_entry.dart';
 import 'package:eat_beat_repeat/logic/models/nutrition_plan.dart';
@@ -28,17 +30,23 @@ class MealsList extends ConsumerWidget {
       padding: EdgeInsets.only(
         left: 16,
         right: 16,
-        bottom: 120 + MediaQuery.of(context).padding.bottom,
+        top: 8,
+        bottom: 16 + MediaQuery.of(context).padding.bottom,
       ),
       itemCount: meals.length,
       itemBuilder: (context, index) {
         final meal = meals[index];
         final macros = service.calculateMacrosForMealEntry(meal);
+        // Determine whether this meal comes from a RecurringMealTemplate.
+        final isRecurring = plan.recurringMeals.any(
+          (t) => t.mealEntry.id == meal.id,
+        );
         return MealCard(
           meal: meal,
           macros: macros,
           plan: plan,
           selectedDate: selectedDate,
+          isRecurring: isRecurring,
         );
       },
     );
@@ -56,12 +64,16 @@ class MealCard extends ConsumerWidget {
   final NutritionPlan plan;
   final DateTime selectedDate;
 
+  /// True if this meal comes from a RecurringMealTemplate.
+  final bool isRecurring;
+
   const MealCard({
     super.key,
     required this.meal,
     required this.macros,
     required this.plan,
     required this.selectedDate,
+    required this.isRecurring,
   });
 
   @override
@@ -71,6 +83,21 @@ class MealCard extends ConsumerWidget {
     final subtitle = isFood
         ? '${(meal as FoodEntry).quantity.toStringAsFixed(0)}g'
         : '${(meal as RecipeEntry).servings} Portion(en)';
+
+    // Look up image
+    String? imagePath;
+    if (isFood) {
+      final foodDataMap = ref.watch(activeFoodDataProvider);
+      imagePath = foodDataMap[(meal as FoodEntry).foodDataId]?.imagePath;
+    } else {
+      final recipes = ref.watch(activeRecipesProvider);
+      for (final r in recipes) {
+        if (r.id == (meal as RecipeEntry).recipeId) {
+          imagePath = r.imagePath;
+          break;
+        }
+      }
+    }
 
     final key = _dateKey(selectedDate);
     final isChecked = (plan.dayOverrides[key]?.checkedMealIds ?? []).contains(
@@ -93,10 +120,13 @@ class MealCard extends ConsumerWidget {
                 onTap: () => _toggleChecked(ref),
               ),
               const SizedBox(width: 10),
-              CircleAvatar(
-                backgroundColor: Colors.teal.shade50,
-                radius: 18,
-                child: Icon(icon, color: Colors.teal, size: 18),
+              FoodImageAvatar(
+                imagePath: imagePath,
+                fallbackIcon: icon,
+                iconColor: isFood ? Colors.orange : Colors.teal,
+                backgroundColor: isFood
+                    ? Colors.orange.shade50
+                    : Colors.teal.shade50,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -128,48 +158,40 @@ class MealCard extends ConsumerWidget {
                         Text(
                           '${macros.calories.toStringAsFixed(0)} kcal',
                           style: const TextStyle(
+                            fontSize: 14,
                             fontWeight: FontWeight.bold,
                             color: Colors.teal,
                           ),
                         ),
                         RichText(
                           text: TextSpan(
-                            style: const TextStyle(fontSize: 11),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade700,
+                            ),
                             children: [
-                              TextSpan(
+                              const TextSpan(
                                 text: 'P ',
-                                style: TextStyle(
-                                  color: Colors.red.shade400,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                                style: TextStyle(fontWeight: FontWeight.w600),
                               ),
                               TextSpan(
                                 text: '${macros.protein.toStringAsFixed(0)}g',
-                                style: TextStyle(color: Colors.red.shade400),
                               ),
                               const TextSpan(text: '  '),
-                              TextSpan(
+                              const TextSpan(
                                 text: 'C ',
-                                style: TextStyle(
-                                  color: Colors.blue.shade400,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                                style: TextStyle(fontWeight: FontWeight.w600),
                               ),
                               TextSpan(
                                 text: '${macros.carbs.toStringAsFixed(0)}g',
-                                style: TextStyle(color: Colors.blue.shade400),
                               ),
                               const TextSpan(text: '  '),
-                              TextSpan(
+                              const TextSpan(
                                 text: 'F ',
-                                style: TextStyle(
-                                  color: Colors.amber.shade600,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                                style: TextStyle(fontWeight: FontWeight.w600),
                               ),
                               TextSpan(
                                 text: '${macros.fat.toStringAsFixed(0)}g',
-                                style: TextStyle(color: Colors.amber.shade600),
                               ),
                             ],
                           ),
@@ -198,33 +220,16 @@ class MealCard extends ConsumerWidget {
   }
 
   void _showMealOptions(BuildContext context, WidgetRef ref) {
-    showModalBottomSheet(
+    showDialog(
       context: context,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(LucideIcons.eyeOff),
-              title: const Text('Für heute ausblenden'),
-              onTap: () {
-                _hideMealForDay(context, ref);
-                Navigator.pop(ctx);
-              },
-            ),
-            ListTile(
-              leading: const Icon(LucideIcons.trash2, color: Colors.red),
-              title: const Text(
-                'Aus Plan entfernen',
-                style: TextStyle(color: Colors.red),
-              ),
-              onTap: () {
-                _removeMealFromPlan(context, ref);
-                Navigator.pop(ctx);
-              },
-            ),
-          ],
-        ),
+      builder: (_) => MealDetailDialog(
+        meal: meal,
+        macros: macros,
+        plan: plan,
+        selectedDate: selectedDate,
+        isRecurring: isRecurring,
+        onHideForToday: () => _hideMealForDay(context, ref),
+        onRemoveFromPlan: () => _removeMealFromPlan(context, ref),
       ),
     );
   }

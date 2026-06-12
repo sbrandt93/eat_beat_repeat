@@ -252,6 +252,7 @@ class NutritionPlanService {
   /// Fügt ein zusätzliches Meal für einen bestimmten Tag hinzu.
   ///
   /// Erstellt oder aktualisiert das DayOverride für diesen Tag.
+  /// Erhält alle bestehenden DayOverride-Felder (checkedMealIds, burnedCalories, etc.).
   NutritionPlan addAdditionalMealToDay(
     NutritionPlan plan,
     DateTime date,
@@ -265,6 +266,8 @@ class NutritionPlanService {
       hiddenRecurringMealTemplateIds:
           existingOverride?.hiddenRecurringMealTemplateIds ?? [],
       additionalMeals: [...?existingOverride?.additionalMeals, meal],
+      checkedMealIds: existingOverride?.checkedMealIds ?? [],
+      burnedCalories: existingOverride?.burnedCalories ?? 0.0,
     );
 
     return plan.copyWith(
@@ -308,22 +311,25 @@ class NutritionPlanService {
   /// Blendet ein wiederkehrendes Meal für einen bestimmten Tag aus.
   ///
   /// Fügt die Template-ID zu hiddenRecurringMealTemplateIds hinzu.
+  /// Erhält alle bestehenden DayOverride-Felder (checkedMealIds, burnedCalories, etc.).
   NutritionPlan hideMealForDay(
     NutritionPlan plan,
     DateTime date,
     String mealEntryId,
   ) {
     // Finde das Template mit dieser mealEntry.id
-    final template = plan.recurringMeals.firstWhere(
-      (t) => t.mealEntry.id == mealEntryId,
-      orElse: () => plan.recurringMeals.first,
-    );
+    final template = plan.recurringMeals
+        .where((t) => t.mealEntry.id == mealEntryId)
+        .firstOrNull;
+
+    // Kein passendes Template → nichts zu tun
+    if (template == null) return plan;
 
     final key = dateKey(date);
     final existingOverride = plan.dayOverrides[key];
 
-    final hiddenIds = [
-      ...?existingOverride?.hiddenRecurringMealTemplateIds,
+    final hiddenIds = <String>[
+      ...existingOverride?.hiddenRecurringMealTemplateIds ?? [],
       template.id,
     ];
 
@@ -331,11 +337,40 @@ class NutritionPlanService {
       dateKey: key,
       hiddenRecurringMealTemplateIds: hiddenIds,
       additionalMeals: existingOverride?.additionalMeals ?? [],
+      checkedMealIds: existingOverride?.checkedMealIds ?? [],
+      burnedCalories: existingOverride?.burnedCalories ?? 0.0,
     );
 
     return plan.copyWith(
       dayOverrides: {...plan.dayOverrides, key: newOverride},
     );
+  }
+
+  // -----------------------------------------------------------------------
+  // RECURRING MEAL BEENDEN (ab einem bestimmten Datum)
+  // -----------------------------------------------------------------------
+
+  /// Beendet ein wiederkehrendes Meal ab einem bestimmten Datum (exklusiv).
+  ///
+  /// Das Meal wird nicht gelöscht, sondern erhält ein endDate.
+  /// Dadurch bleibt es in vergangenen Tagen sichtbar.
+  /// Gibt null zurück, wenn das Template nicht gefunden wurde.
+  NutritionPlan? endRecurringMealFromDate(
+    NutritionPlan plan,
+    String mealEntryId,
+    DateTime fromDate,
+  ) {
+    final idx = plan.recurringMeals.indexWhere(
+      (t) => t.mealEntry.id == mealEntryId,
+    );
+    if (idx == -1) return null;
+
+    final template = plan.recurringMeals[idx];
+    final updatedTemplate = template.copyWith(endDate: fromDate);
+    final updatedMeals = List<RecurringMealTemplate>.from(plan.recurringMeals)
+      ..[idx] = updatedTemplate;
+
+    return plan.copyWith(recurringMeals: updatedMeals);
   }
 
   // -----------------------------------------------------------------------
@@ -394,23 +429,24 @@ class NutritionPlanService {
 
   // -----------------------------------------------------------------------
 
-  /// Entfernt ein Meal aus dem Plan (recurring oder additional).
+  /// Entfernt ein Meal aus dem Plan ab [date] (nur aktuelle und zukünftige Tage).
   ///
-  /// Versucht zuerst, es als recurring meal zu entfernen.
-  /// Falls nicht gefunden, versucht es als additional meal für den Tag.
+  /// Bei wiederkehrenden Meals: setzt endDate = date, sodass vergangene Tage
+  /// unverändert bleiben.
+  /// Bei zusätzlichen Meals (nur für einen Tag): löscht den Eintrag direkt.
   /// Gibt den aktualisierten Plan oder null zurück.
   ({NutritionPlan plan, bool wasRecurring})? removeMealFromPlan(
     NutritionPlan plan,
     DateTime date,
     String mealId,
   ) {
-    // 1. Versuche als recurring meal zu entfernen
-    final planWithoutRecurring = removeRecurringMeal(plan, mealId);
-    if (planWithoutRecurring != null) {
-      return (plan: planWithoutRecurring, wasRecurring: true);
+    // 1. Versuche als recurring meal ab diesem Datum zu beenden
+    final planWithEndedRecurring = endRecurringMealFromDate(plan, mealId, date);
+    if (planWithEndedRecurring != null) {
+      return (plan: planWithEndedRecurring, wasRecurring: true);
     }
 
-    // 2. Versuche als additional meal zu entfernen
+    // 2. Versuche als additional meal für diesen Tag zu entfernen
     final planWithoutAdditional = removeAdditionalMealFromDay(
       plan,
       date,

@@ -1,6 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Camera and photo access for nutrition label scanning -->
+    <!-- Camera for barcode scanning; internet for OpenFoodFacts API -->
     <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.INTERNET" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <application
         android:label="eat_beat_repeat"

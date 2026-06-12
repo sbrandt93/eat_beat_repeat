@@ -22,6 +22,40 @@ class DateNavigator extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isToday = _isToday(selectedDate);
+    final planStart = DateTime(
+      plan.startDate.year,
+      plan.startDate.month,
+      plan.startDate.day,
+    );
+    final planEnd = plan.endDate != null
+        ? DateTime(plan.endDate!.year, plan.endDate!.month, plan.endDate!.day)
+        : null;
+
+    final canGoBack =
+        !DateTime(
+          selectedDate.year,
+          selectedDate.month,
+          selectedDate.day,
+        ).isAtSameMomentAs(planStart) &&
+        DateTime(
+          selectedDate.year,
+          selectedDate.month,
+          selectedDate.day,
+        ).isAfter(planStart);
+
+    final canGoForward =
+        planEnd == null ||
+        DateTime(
+          selectedDate.year,
+          selectedDate.month,
+          selectedDate.day,
+        ).isBefore(planEnd);
+
+    final today = DateTime.now();
+    final todayDate = DateTime(today.year, today.month, today.day);
+    final isTodayInRange =
+        !todayDate.isBefore(planStart) &&
+        (planEnd == null || !todayDate.isAfter(planEnd));
 
     return Container(
       color: Colors.white,
@@ -32,11 +66,11 @@ class DateNavigator extends ConsumerWidget {
           IconButton(
             icon: const Icon(LucideIcons.chevronLeft),
             iconSize: 20,
-            onPressed: () => _changeDate(ref, -1),
+            onPressed: canGoBack ? () => _changeDate(ref, -1) : null,
           ),
 
-          // Heute-Chip (nur sichtbar wenn nicht heute)
-          if (!isToday)
+          // Heute-Chip (nur sichtbar wenn nicht heute UND heute im Planbereich)
+          if (!isToday && isTodayInRange)
             Padding(
               padding: const EdgeInsets.only(right: 6),
               child: ActionChip(
@@ -81,7 +115,7 @@ class DateNavigator extends ConsumerWidget {
           IconButton(
             icon: const Icon(LucideIcons.chevronRight),
             iconSize: 20,
-            onPressed: () => _changeDate(ref, 1),
+            onPressed: canGoForward ? () => _changeDate(ref, 1) : null,
           ),
         ],
       ),

@@ -7,4 +7,5 @@ export 'create_plan_dialog.dart';
 export 'date_navigator.dart';
 export 'edit_plan_dialog.dart';
 export 'macro_summary_card.dart';
+export 'meal_detail_dialog.dart';
 export 'meals_list.dart';

@@ -129,6 +129,7 @@ void main() {
               quantity: 120,
             ),
             rule: RecurrenceRule.daily(),
+            startDate: DateTime(2000),
           ),
         ],
         dayOverrides: {},
@@ -154,6 +155,7 @@ void main() {
               quantity: 120,
             ),
             rule: RecurrenceRule.daily(),
+            startDate: DateTime(2000),
           ),
           RecurringMealTemplate(
             mealEntry: RecipeEntry(
@@ -162,6 +164,7 @@ void main() {
               servings: 1,
             ),
             rule: RecurrenceRule.weekdays(),
+            startDate: DateTime(2000),
           ),
         ],
         dayOverrides: {},
@@ -186,6 +189,7 @@ void main() {
           quantity: 120,
         ),
         rule: RecurrenceRule.daily(),
+        startDate: DateTime(2000),
       );
 
       final plan = NutritionPlan(
@@ -223,6 +227,7 @@ void main() {
               quantity: 120,
             ),
             rule: RecurrenceRule.daily(),
+            startDate: DateTime(2000),
           ),
         ],
         dayOverrides: {
@@ -339,6 +344,7 @@ void main() {
               quantity: 120,
             ),
             rule: RecurrenceRule.daily(),
+            startDate: DateTime(2000),
           ),
           // Porridge wochentags: 489.6 kcal
           RecurringMealTemplate(
@@ -348,6 +354,7 @@ void main() {
               servings: 1,
             ),
             rule: RecurrenceRule.weekdays(),
+            startDate: DateTime(2000),
           ),
         ],
         dayOverrides: {},
@@ -377,6 +384,7 @@ void main() {
           quantity: 120, // 106.8 kcal
         ),
         rule: RecurrenceRule.daily(),
+        startDate: DateTime(2000),
       );
 
       final plan = NutritionPlan(
@@ -431,6 +439,7 @@ void main() {
               quantity: 100, // 89 kcal
             ),
             rule: RecurrenceRule.daily(),
+            startDate: DateTime(2000),
           ),
         ],
         dayOverrides: {},
@@ -462,6 +471,7 @@ void main() {
               quantity: 100, // 89 kcal pro Tag
             ),
             rule: RecurrenceRule.daily(),
+            startDate: DateTime(2000),
           ),
         ],
         dayOverrides: {},
@@ -490,6 +500,7 @@ void main() {
               quantity: 100, // 89 kcal
             ),
             rule: RecurrenceRule.daily(),
+            startDate: DateTime(2000),
           ),
           RecurringMealTemplate(
             mealEntry: RecipeEntry(
@@ -498,6 +509,7 @@ void main() {
               servings: 1, // 489.6 kcal
             ),
             rule: RecurrenceRule.weekdays(),
+            startDate: DateTime(2000),
           ),
         ],
         dayOverrides: {},
@@ -533,6 +545,7 @@ void main() {
               quantity: 200, // 178 kcal, 2.2g protein
             ),
             rule: RecurrenceRule.daily(),
+            startDate: DateTime(2000),
           ),
         ],
         dayOverrides: {},
@@ -568,6 +581,7 @@ void main() {
               quantity: 1000, // 890 kcal
             ),
             rule: RecurrenceRule.daily(),
+            startDate: DateTime(2000),
           ),
         ],
         dayOverrides: {},
@@ -622,6 +636,7 @@ void main() {
           quantity: 120, // 106.8 kcal, 1.32g protein, 27.36g carbs, 0.36g fat
         ),
         rule: RecurrenceRule.daily(),
+        startDate: DateTime(2000),
       );
 
       final weekdayPorridge = RecurringMealTemplate(
@@ -631,6 +646,7 @@ void main() {
           servings: 1, // 489.6 kcal
         ),
         rule: RecurrenceRule.weekdays(),
+        startDate: DateTime(2000),
       );
 
       final weekendChicken = RecurringMealTemplate(
@@ -640,6 +656,7 @@ void main() {
           quantity: 250, // 412.5 kcal, 77.5g protein
         ),
         rule: RecurrenceRule.weekends(),
+        startDate: DateTime(2000),
       );
 
       final plan = NutritionPlan(
@@ -747,3 +764,4 @@ void main() {
     });
   });
 }
+

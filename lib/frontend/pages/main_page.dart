@@ -101,7 +101,7 @@ class _MainPageState extends ConsumerState<MainPage> {
               icon: Icon(
                 Icons.fastfood_outlined,
               ),
-              label: 'Ernährungspläne',
+              label: 'Ernährung',
             ),
             NavigationDestination(
               icon: Icon(
