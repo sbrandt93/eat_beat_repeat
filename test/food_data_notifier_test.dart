@@ -87,10 +87,10 @@ void main() {
       // HINWEIS: Man kann den Zustand auch direkt lesen:
       final stateMap = container.read(foodDataNotifierProvider);
 
-      // TODO: ASSERT - Überprüfe, ob die Map den Eintrag enthält
+      // ASSERT - Überprüfe, ob die Map den Eintrag enthält
       expect(stateMap.containsKey(foodData.id), isTrue);
 
-      // TODO: ASSERT - Überprüfe, ob der gespeicherte Wert identisch ist
+      // ASSERT - Überprüfe, ob der gespeicherte Wert identisch ist
       expect(stateMap[foodData.id]!.name, equals('Orange'));
       expect(
         stateMap[foodData.id]!.macrosPer100unit.calories,
